@@ -33,6 +33,8 @@ impl App {
             env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug"))
                 .try_init();
 
+        install_panic_hook();
+
         Self {
             context: Context::new(),
             startup_systems: Vec::new(),
@@ -117,3 +119,45 @@ impl App {
 }
 
 pub type Kon = App;
+
+fn install_panic_hook() {
+    use std::sync::Once;
+    static START: Once = Once::new();
+
+    START.call_once(|| {
+        std::panic::set_hook(Box::new(|info| {
+            let msg = if let Some(s) = info.payload().downcast_ref::<&str>() {
+                *s
+            } else if let Some(s) = info.payload().downcast_ref::<String>() {
+                &**s
+            } else {
+                "Unknown engine error"
+            };
+
+            let location = if let Some(location) = info.location() {
+                format!(
+                    "{}:{}:{}",
+                    location.file(),
+                    location.line(),
+                    location.column()
+                )
+            } else {
+                "Unknown location".to_string()
+            };
+
+            let thread = std::thread::current();
+            let thread_name = thread.name().unwrap_or("unknown");
+
+            log::error!("{}", msg);
+            log::error!("  at {}", location);
+            log::debug!(
+                "  thread: '{}', platform: {}-{}",
+                thread_name,
+                std::env::consts::OS,
+                std::env::consts::ARCH
+            );
+
+            eprintln!("\n\x1b[31mKon Engine process terminated.\x1b[0m\n");
+        }));
+    });
+}
