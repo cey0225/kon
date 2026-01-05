@@ -4,7 +4,7 @@
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, FnArg, ItemFn, PatType, Type};
+use syn::{FnArg, ItemFn, PatType, Type, parse_macro_input};
 
 /// Marks a function as a system
 ///
@@ -34,7 +34,22 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let valid = match &params[0] {
         FnArg::Typed(PatType { ty, .. }) => match ty.as_ref() {
-            Type::Reference(r) => r.mutability.is_some(),
+            Type::Reference(r) => {
+                if r.mutability.is_none() {
+                    false;
+                }
+
+                match r.elem.as_ref() {
+                    Type::Path(type_path) => {
+                        if let Some(last_segment) = type_path.path.segments.last() {
+                            last_segment.ident == "Context"
+                        } else {
+                            false
+                        }
+                    }
+                    _ => false,
+                }
+            }
             _ => false,
         },
         _ => false,
