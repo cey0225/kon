@@ -11,24 +11,12 @@ pub trait ContextEcsExt {
 
 impl ContextEcsExt for Context {
     fn world(&self) -> &World {
-        if self.global::<World>().is_none() {
-            handle_missing_plugin();
-        }
-
-        self.global::<World>().unwrap()
+        self.global::<World>()
+            .expect("Failed to access World. Ensure 'DefaultPlugins' or 'EcsPlugin' is added")
     }
 
     fn world_mut(&mut self) -> &mut World {
-        if self.global_mut::<World>().is_none() {
-            handle_missing_plugin();
-        }
-
-        self.global_mut::<World>().unwrap()
+        self.global_mut::<World>()
+            .expect("Failed to access World. Ensure 'DefaultPlugins' or 'EcsPlugin' is added")
     }
-}
-
-fn handle_missing_plugin() -> ! {
-    log::error!("Failed to access World: EcsPlugin is missing");
-    log::info!("Kon Engine stopped");
-    std::process::exit(1);
 }
