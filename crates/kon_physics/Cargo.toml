@@ -1,0 +1,6 @@
+[package]
+name = "kon_physics"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

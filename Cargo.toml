@@ -1,0 +1,59 @@
+[package]
+name = "kon"
+version = "0.1.0"
+edition = "2024"
+authors = ["Ceyhun <ceyhun.yildizz0@gmail.com>"]
+license = "MIT OR Apache-2.0"
+description = "Modular, plugin-based 2D game engine"
+
+[dependencies]
+kon_core = { path = "crates/kon_core" }
+kon_ecs = { path = "crates/kon_ecs" }
+kon_macros = { path = "crates/kon_macros" }
+log = "0.4.29"
+
+[workspace]
+resolver = "2"
+members = [
+    "editor",
+    "crates/kon_core",
+    "crates/kon_math",
+    "crates/kon_ecs",
+    "crates/kon_window",
+    "crates/kon_renderer",
+    "crates/kon_input",
+    "crates/kon_physics",
+    "crates/kon_macros",
+    "demos/ecs_demo",
+    "demos/app_demo"
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+authors = ["Ceyhun <ceyhun.yildizz0@gmail.com>"]
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+# --- Logger ---
+log = "0.4.29"
+env_logger = "0.11.8"
+
+# --- Engine ---
+winit = "0.30.12"
+wgpu = "28.0.0"
+glam = "0.30.9"
+pollster = "0.4.0"
+quote = "1.0.42"
+syn = { version = "2.0.112", features = ["full"] }
+proc-macro2 = "1.0.104"
+
+# --- Modules ---
+kon_core = { path = "crates/kon_core" }
+kon_math = { path = "crates/kon_math" }
+kon_ecs = { path = "crates/kon_ecs" }
+kon_window = { path = "crates/kon_window" }
+kon_renderer = { path = "crates/kon_renderer" }
+kon_input = { path = "crates/kon_input" }
+kon_physics = { path = "crates/kon_physics" }
+kon_macros = { path = "crates/kon_macros" }

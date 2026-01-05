@@ -1,0 +1,20 @@
+[package]
+name = "ecs_demo"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+kon = { path = "../.." }
+
+[[bin]]
+name = "query_demo"
+path = "query_demo/main.rs"
+
+[[bin]]
+name = "tag_demo"
+path = "tag_demo/main.rs"
+
+[[bin]]
+name = "lifecycle_demo"
+path = "lifecycle_demo/main.rs"

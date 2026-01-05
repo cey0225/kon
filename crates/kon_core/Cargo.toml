@@ -1,0 +1,11 @@
+[package]
+name = "kon_core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Core functionality for Kon Engine"
+
+[dependencies]
+log.workspace = true
+env_logger.workspace = true

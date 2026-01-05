@@ -1,0 +1,6 @@
+[package]
+name = "kon_editor"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

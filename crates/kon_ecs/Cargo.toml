@@ -1,0 +1,11 @@
+[package]
+name = "kon_ecs"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Entity Component System for Kon Engine"
+
+[dependencies]
+log.workspace = true
+kon_core.workspace = true

@@ -1,0 +1,29 @@
+# Build
+target
+
+# Cargo
+Cargo.lock
+**/*.rs.bk
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Editor backups
+*.bak
+*.tmp
+
+# Profiling
+perf.data
+perf.data.old
+flamegraph.svg
