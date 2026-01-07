@@ -211,6 +211,7 @@ impl_query_tuple!(A, B, C, D, E, F, G, H, I, J);
 impl_query_tuple!(A, B, C, D, E, F, G, H, I, J, K);
 impl_query_tuple!(A, B, C, D, E, F, G, H, I, J, K, L);
 
+#[track_caller]
 fn check_duplicate_types(type_ids: &[TypeId]) {
     let unique: HashSet<_> = type_ids.iter().collect();
     if unique.len() != type_ids.len() {

@@ -10,11 +10,13 @@ pub trait ContextEcsExt {
 }
 
 impl ContextEcsExt for Context {
+    #[track_caller]
     fn world(&self) -> &World {
         self.global::<World>()
             .expect("Failed to access World. Ensure 'DefaultPlugins' or 'EcsPlugin' is added")
     }
 
+    #[track_caller]
     fn world_mut(&mut self) -> &mut World {
         self.global_mut::<World>()
             .expect("Failed to access World. Ensure 'DefaultPlugins' or 'EcsPlugin' is added")
