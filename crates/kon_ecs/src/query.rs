@@ -29,6 +29,7 @@ use crate::entity::Entity;
 use crate::storage::SparseSet;
 use crate::World;
 use std::any::{Any, TypeId};
+use std::collections::HashSet;
 use std::marker::PhantomData;
 
 // ============================================================================
@@ -123,6 +124,7 @@ pub trait QueryTuple<'w> {
     type Output;
     fn fetch_all(world: &'w World, entity_id: u32) -> Option<Self::Output>;
     fn first_type_id() -> TypeId;
+    fn type_ids() -> Vec<TypeId>;
 }
 
 // ============================================================================
@@ -133,6 +135,7 @@ pub trait QueryTupleMut<'w> {
     type Output;
     fn fetch_all(world: &'w mut World, entity_id: u32) -> Option<Self::Output>;
     fn first_type_id() -> TypeId;
+    fn type_ids() -> Vec<TypeId>;
 }
 
 // ============================================================================
@@ -156,6 +159,13 @@ macro_rules! impl_query_tuple {
             fn first_type_id() -> TypeId {
                 $first::type_id()
             }
+
+            fn type_ids() -> Vec<TypeId> {
+                vec![
+                    $first::type_id(),
+                    $($rest::type_id()),*
+                ]
+            }
         }
 
         // Mutable version
@@ -176,6 +186,13 @@ macro_rules! impl_query_tuple {
             fn first_type_id() -> TypeId {
                 $first::type_id()
             }
+
+            fn type_ids() -> Vec<TypeId> {
+                vec![
+                    $first::type_id(),
+                    $($rest::type_id()),*
+                ]
+            }
         }
     };
 }
@@ -193,6 +210,13 @@ impl_query_tuple!(A, B, C, D, E, F, G, H, I);
 impl_query_tuple!(A, B, C, D, E, F, G, H, I, J);
 impl_query_tuple!(A, B, C, D, E, F, G, H, I, J, K);
 impl_query_tuple!(A, B, C, D, E, F, G, H, I, J, K, L);
+
+fn check_duplicate_types(type_ids: &[TypeId]) {
+    let unique: HashSet<_> = type_ids.iter().collect();
+    if unique.len() != type_ids.len() {
+        panic!("Duplicate component types in query");
+    }
+}
 
 // ============================================================================
 // Query - Immutable query builder
@@ -217,6 +241,8 @@ pub struct Query<'w, T> {
 
 impl<'w, T: QueryTuple<'w>> Query<'w, T> {
     pub(crate) fn new(world: &'w World) -> Self {
+        check_duplicate_types(&T::type_ids());
+
         Self {
             world,
             filter: QueryFilter::new(),
@@ -284,6 +310,8 @@ pub struct QueryMut<'w, T> {
 
 impl<'w, T: QueryTupleMut<'w>> QueryMut<'w, T> {
     pub(crate) fn new(world: &'w mut World) -> Self {
+        check_duplicate_types(&T::type_ids());
+
         Self {
             world,
             filter: QueryFilter::new(),
@@ -529,5 +557,15 @@ mod tests {
         });
 
         assert_eq!(entity_count, 0);
+    }
+
+    #[test]
+    #[should_panic]
+    fn query_duplicate_component_type() {
+        let mut world = World::new();
+        world.spawn().insert(Health(100));
+
+        world.select::<(Health, Health)>().each(|_, _| {});
+        world.select_mut::<(Health, Health)>().each(|_, _| {});
     }
 }
