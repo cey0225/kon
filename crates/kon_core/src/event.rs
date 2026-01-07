@@ -51,7 +51,17 @@ impl Events {
             .unwrap_or_else(|| [].iter())
     }
 
-    /// Clears events of a specific type
+    /// Reads and clears all events of a specific type
+    pub fn consume<E: Event>(&mut self) -> impl Iterator<Item = E> {
+        let type_id = TypeId::of::<E>();
+        self.queues
+            .remove(&type_id)
+            .and_then(|queue| queue.downcast::<Vec<E>>().ok())
+            .map(|boxed_vec| (*boxed_vec).into_iter())
+            .unwrap_or_else(|| vec![].into_iter())
+    }
+
+    /// Clears all events of a specific type
     pub fn clear<E: Event>(&mut self) {
         let type_id = TypeId::of::<E>();
         if let Some(queue) = self.queues.get_mut(&type_id) {
@@ -130,6 +140,18 @@ mod tests {
         assert_eq!(received_other_event.len(), 1);
         assert_eq!(received_test_event[0].value, 5);
         assert_eq!(received_other_event[0].value, "test");
+    }
+
+    #[test]
+    fn consume_removes_events() {
+        let mut events = Events::new();
+        events.send(TestEvent { value: 5 });
+
+        let consumed: Vec<_> = events.consume::<TestEvent>().collect();
+
+        assert_eq!(consumed.len(), 1);
+        assert_eq!(consumed[0].value, 5);
+        assert_eq!(events.read::<TestEvent>().count(), 0);
     }
 
     #[test]
