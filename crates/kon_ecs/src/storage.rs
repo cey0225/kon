@@ -141,3 +141,100 @@ impl<T: Any + Send + Sync + Debug + 'static> Storage for SparseSet<T> {
         self.get(entity_id).map(|v| format!("{:?}", v))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn insert_and_get() {
+        let mut set = SparseSet::new();
+        set.insert(1, "a");
+        assert_eq!(set.get(1), Some(&"a"));
+    }
+
+    #[test]
+    fn get_nonexistent() {
+        let set = SparseSet::<i32>::new();
+        assert_eq!(set.get(1), None);
+    }
+
+    #[test]
+    fn remove_existing() {
+        let mut set = SparseSet::new();
+        set.insert(1, "a");
+        assert_eq!(set.remove(1), Some("a"));
+        assert_eq!(set.get(1), None);
+        assert_eq!(set.len(), 0);
+    }
+
+    #[test]
+    fn remove_nonexistent() {
+        let mut set = SparseSet::<i32>::new();
+        assert_eq!(set.remove(1), None);
+    }
+
+    #[test]
+    fn insert_overwrites() {
+        let mut set = SparseSet::new();
+        set.insert(1, "a");
+        set.insert(1, "b");
+        assert_eq!(set.get(1), Some(&"b"));
+        assert_eq!(set.len(), 1);
+    }
+
+    #[test]
+    fn remove_middle_swaps_last() {
+        let mut set = SparseSet::new();
+        set.insert(1, "a");
+        set.insert(2, "b");
+        set.insert(3, "c");
+
+        set.remove(2);
+
+        assert_eq!(set.len(), 2);
+        assert_eq!(set.get(1), Some(&"a"));
+        assert_eq!(set.get(3), Some(&"c"));
+        assert_eq!(set.get(2), None);
+    }
+
+    #[test]
+    fn contains_check() {
+        let mut set = SparseSet::new();
+        set.insert(1, "a");
+        assert!(set.contains(1));
+        assert!(!set.contains(2));
+    }
+
+    #[test]
+    fn iter_all_entries() {
+        let mut set = SparseSet::new();
+        set.insert(1, "a");
+        set.insert(2, "b");
+        set.insert(3, "c");
+
+        let items: Vec<_> = set.iter().collect();
+        assert_eq!(items.len(), 3);
+    }
+
+    #[test]
+    fn iter_mut_modifies() {
+        let mut set = SparseSet::new();
+        set.insert(1, 50);
+        set.insert(2, 100);
+
+        for (_, value) in set.iter_mut() {
+            *value *= 3;
+        }
+
+        assert_eq!(set.get(1), Some(&150));
+        assert_eq!(set.get(2), Some(&300));
+    }
+
+    #[test]
+    fn empty_set() {
+        let set = SparseSet::<i32>::new();
+        assert_eq!(set.len(), 0);
+        assert!(set.is_empty());
+    }
+}
