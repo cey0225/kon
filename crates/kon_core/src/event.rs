@@ -70,3 +70,91 @@ impl Events {
 /// Application exit event
 #[derive(Debug, Clone)]
 pub struct AppExit;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug, Clone)]
+    struct TestEvent {
+        value: i32,
+    }
+
+    #[derive(Debug, Clone)]
+    struct OtherEvent {
+        value: &'static str,
+    }
+
+    #[test]
+    fn send_and_read_event() {
+        let mut events = Events::new();
+        events.send(TestEvent { value: 10 });
+
+        let received: Vec<_> = events.read::<TestEvent>().collect();
+        assert_eq!(received[0].value, 10);
+    }
+
+    #[test]
+    fn read_empty_queue() {
+        let events = Events::new();
+        assert_eq!(events.read::<TestEvent>().count(), 0);
+    }
+
+    #[test]
+    fn multiple_same_type_events() {
+        let mut events = Events::new();
+
+        events.send(TestEvent { value: 10 });
+        events.send(TestEvent { value: 20 });
+        events.send(TestEvent { value: 30 });
+
+        let received: Vec<_> = events.read::<TestEvent>().collect();
+
+        assert_eq!(received.len(), 3);
+        assert_eq!(received[0].value, 10);
+        assert_eq!(received[1].value, 20);
+        assert_eq!(received[2].value, 30);
+    }
+
+    #[test]
+    fn different_event_types_separate_queues() {
+        let mut events = Events::new();
+
+        events.send(TestEvent { value: 5 });
+        events.send(OtherEvent { value: "test" });
+
+        let received_test_event: Vec<_> = events.read::<TestEvent>().collect();
+        let received_other_event: Vec<_> = events.read::<OtherEvent>().collect();
+
+        assert_eq!(received_test_event.len(), 1);
+        assert_eq!(received_other_event.len(), 1);
+        assert_eq!(received_test_event[0].value, 5);
+        assert_eq!(received_other_event[0].value, "test");
+    }
+
+    #[test]
+    fn clear_specific_type() {
+        let mut events = Events::new();
+
+        events.send(TestEvent { value: 5 });
+        events.send(OtherEvent { value: "test" });
+
+        events.clear::<TestEvent>();
+
+        assert_eq!(events.read::<TestEvent>().count(), 0);
+        assert_eq!(events.read::<OtherEvent>().count(), 1);
+    }
+
+    #[test]
+    fn clear_all() {
+        let mut events = Events::new();
+
+        events.send(TestEvent { value: 5 });
+        events.send(OtherEvent { value: "test" });
+
+        events.clear_all();
+
+        assert_eq!(events.read::<TestEvent>().count(), 0);
+        assert_eq!(events.read::<OtherEvent>().count(), 0);
+    }
+}
