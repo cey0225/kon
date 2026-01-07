@@ -72,3 +72,40 @@ impl<'w> EntityBuilder<'w> {
         self.entity
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn entity_creation() {
+        let entity = Entity::new(1, 0);
+        assert_eq!(entity.id(), 1);
+        assert_eq!(entity.generation(), 0);
+    }
+
+    #[test]
+    fn entity_equality() {
+        let e1 = Entity::new(1, 0);
+        let e2 = Entity::new(1, 0);
+        let e3 = Entity::new(1, 1);
+
+        assert_eq!(e1, e2);
+        assert_ne!(e1, e3);
+    }
+    #[test]
+    fn entity_display() {
+        let entity = Entity::new(1, 0);
+        let display = format!("{}", entity);
+        assert_eq!(display, "Entity(1v0)");
+    }
+
+    #[test]
+    fn generation_increments() {
+        let e1 = Entity::new(1, 0);
+        let e2 = Entity::new(1, 1);
+
+        assert_eq!(e1.id(), e2.id());
+        assert_ne!(e1.generation(), e2.generation());
+    }
+}
