@@ -370,3 +370,284 @@ impl World {
         println!("┘");
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug, Clone, PartialEq)]
+    struct Health(i32);
+
+    #[derive(Debug, Clone, PartialEq)]
+    struct Position {
+        x: f32,
+        y: f32,
+    }
+
+    #[test]
+    fn spawn_entity() {
+        let mut world = World::new();
+        let entity = world.spawn().id();
+        assert!(world.is_alive(entity));
+        assert_eq!(world.entity_count(), 1);
+    }
+
+    #[test]
+    fn destroy_entity() {
+        let mut world = World::new();
+        let entity = world.spawn().id();
+        world.destroy(entity);
+        assert!(!world.is_alive(entity));
+        assert_eq!(world.entity_count(), 0);
+    }
+
+    #[test]
+    fn destroy_dead_entity_returns_false() {
+        let mut world = World::new();
+        let entity = world.spawn().id();
+        world.destroy(entity);
+        assert!(!world.destroy(entity));
+    }
+
+    #[test]
+    fn entity_count() {
+        let mut world = World::new();
+        world.spawn().id();
+        world.spawn().id();
+        world.spawn().id();
+        assert_eq!(world.entity_count(), 3);
+    }
+
+    #[test]
+    fn entity_reuse_after_destroy() {
+        let mut world = World::new();
+        let entity = world.spawn().id();
+        world.destroy(entity);
+        let new_entity = world.spawn().id();
+        assert_eq!(entity.id(), new_entity.id());
+        assert_ne!(entity.generation(), new_entity.generation());
+    }
+
+    #[test]
+    fn generation_tracking() {
+        let mut world = World::new();
+        let entity = world.spawn().id();
+        world.destroy(entity);
+        let entity2 = world.spawn().id();
+        world.destroy(entity2);
+        let entity3 = world.spawn().id();
+
+        assert_eq!(entity.generation(), 0);
+        assert_eq!(entity2.generation(), 1);
+        assert_eq!(entity3.generation(), 2);
+    }
+
+    #[test]
+    fn insert_and_get_component() {
+        let mut world = World::new();
+        let entity = world.spawn().id();
+
+        world.insert(entity, Health(100));
+
+        let health = world.get::<Health>(entity).unwrap();
+        assert_eq!(health.0, 100);
+    }
+
+    #[test]
+    fn get_nonexistent_component() {
+        let mut world = World::new();
+        let entity = world.spawn().id();
+        assert_eq!(world.get::<Health>(entity), None);
+    }
+
+    #[test]
+    fn get_mut_component() {
+        let mut world = World::new();
+        let entity = world.spawn().id();
+
+        world.insert(entity, Health(100));
+
+        {
+            let health = world.get_mut::<Health>(entity).unwrap();
+            health.0 -= 30;
+        }
+
+        assert_eq!(world.get::<Health>(entity).unwrap().0, 70);
+    }
+
+    #[test]
+    fn has_component() {
+        let mut world = World::new();
+        let entity = world.spawn().id();
+
+        world.insert(entity, Health(100));
+
+        assert!(world.has::<Health>(entity));
+        assert!(!world.has::<Position>(entity));
+    }
+
+    #[test]
+    fn remove_component() {
+        let mut world = World::new();
+        let entity = world.spawn().id();
+
+        world.insert(entity, Health(100));
+        world.remove::<Health>(entity);
+
+        assert!(!world.has::<Health>(entity));
+        assert_eq!(world.get::<Health>(entity), None);
+    }
+
+    #[test]
+    fn remove_nonexistent_component() {
+        let mut world = World::new();
+        let entity = world.spawn().id();
+        assert!(!world.remove::<Health>(entity));
+    }
+
+    #[test]
+    fn insert_overwrites_component() {
+        let mut world = World::new();
+        let entity = world.spawn().id();
+        world.insert(entity, Health(100));
+        world.insert(entity, Health(50));
+        assert_eq!(world.get::<Health>(entity).unwrap().0, 50);
+    }
+
+    #[test]
+    fn destroy_clears_all_components() {
+        let mut world = World::new();
+        let entity = world.spawn().id();
+        world.insert(entity, Health(100));
+        world.insert(entity, Position { x: 10.0, y: 60.0 });
+        world.destroy(entity);
+        assert!(!world.has::<Health>(entity));
+        assert!(!world.has::<Position>(entity));
+    }
+
+    #[test]
+    fn tag_and_has_tag() {
+        let mut world = World::new();
+        let entity = world.spawn().id();
+        world.tag(entity, "player");
+        assert!(world.has_tag(entity, "player"));
+    }
+
+    #[test]
+    fn untag_removes_tag() {
+        let mut world = World::new();
+        let entity = world.spawn().id();
+        world.tag(entity, "player");
+        world.untag(entity, "player");
+        assert!(!world.has_tag(entity, "player"));
+    }
+
+    #[test]
+    fn multiple_tags_on_entity() {
+        let mut world = World::new();
+        let entity = world.spawn().id();
+        world.tag(entity, "npc");
+        world.tag(entity, "friendly");
+        world.tag(entity, "tradeable");
+        assert!(world.has_tag(entity, "npc"));
+        assert!(world.has_tag(entity, "friendly"));
+        assert!(world.has_tag(entity, "tradeable"));
+    }
+
+    #[test]
+    fn destroy_clears_tags() {
+        let mut world = World::new();
+        let entity = world.spawn().id();
+        world.tag(entity, "npc");
+        world.tag(entity, "friendly");
+        world.tag(entity, "tradeable");
+        world.destroy(entity);
+        assert_eq!(world.tags.len(), 0);
+    }
+
+    #[test]
+    fn insert_on_dead_entity_ignored() {
+        let mut world = World::new();
+        let entity = world.spawn().id();
+
+        world.destroy(entity);
+        world.insert(entity, Health(100));
+
+        assert!(!world.has::<Health>(entity));
+    }
+
+    #[test]
+    fn get_from_dead_entity_returns_none() {
+        let mut world = World::new();
+        let entity = world.spawn().id();
+
+        world.insert(entity, Health(100));
+        world.destroy(entity);
+
+        assert_eq!(world.get::<Health>(entity), None);
+    }
+
+    #[test]
+    fn tag_on_dead_entity_ignored() {
+        let mut world = World::new();
+        let entity = world.spawn().id();
+
+        world.destroy(entity);
+        world.tag(entity, "player");
+
+        assert!(!world.has_tag(entity, "player"));
+    }
+
+    #[test]
+    fn entity_builder_chain() {
+        let mut world = World::new();
+        let entity = world
+            .spawn()
+            .insert(Health(100))
+            .insert(Position { x: 5.0, y: 7.0 })
+            .tag("player")
+            .id();
+        assert!(world.has::<Health>(entity));
+        assert!(world.has::<Position>(entity));
+        assert!(world.has_tag(entity, "player"));
+    }
+
+    #[test]
+    fn defer_spawns_entity() {
+        let mut world = World::new();
+
+        world.defer(|w| {
+            w.spawn().id();
+        });
+
+        assert_eq!(world.entity_count(), 0);
+
+        world.apply_deferred();
+
+        assert_eq!(world.entity_count(), 1);
+    }
+
+    #[test]
+    fn multiple_deferred_operations() {
+        let mut world = World::new();
+
+        for i in 0..10 {
+            world.defer(move |w| {
+                w.spawn().insert(Health(i));
+            });
+        }
+
+        world.apply_deferred();
+        assert_eq!(world.entity_count(), 10);
+    }
+
+    #[test]
+    fn deferred_cleared_after_apply() {
+        let mut world = World::new();
+        world.defer(|w| {
+            w.spawn().id();
+        });
+        world.apply_deferred();
+        assert_eq!(world.deferred.len(), 0);
+    }
+}
