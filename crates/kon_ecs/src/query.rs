@@ -330,3 +330,204 @@ impl<'w, T: QueryTupleMut<'w>> QueryMut<'w, T> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::World;
+
+    #[derive(Debug, Clone, PartialEq)]
+    struct Health(i32);
+
+    #[derive(Debug, Clone, PartialEq)]
+    struct Position {
+        x: f32,
+        y: f32,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    struct Velocity {
+        x: f32,
+        y: f32,
+    }
+
+    #[test]
+    fn query_single_component() {
+        let mut world = World::new();
+        world.spawn().insert(Health(100));
+        world.spawn().insert(Health(50));
+
+        let mut entity_count = 0;
+        world.select::<(Health,)>().each(|_, _| {
+            entity_count += 1;
+        });
+
+        assert_eq!(entity_count, 2);
+    }
+
+    #[test]
+    fn query_multiple_components() {
+        let mut world = World::new();
+        world.spawn().insert(Health(100));
+        world
+            .spawn()
+            .insert(Health(50))
+            .insert(Velocity { x: 5.0, y: 5.0 });
+
+        let mut entity_count = 0;
+        world.select::<(Health, Velocity)>().each(|_, _| {
+            entity_count += 1;
+        });
+
+        assert_eq!(entity_count, 1);
+    }
+
+    #[test]
+    fn query_three_components() {
+        let mut world = World::new();
+        world.spawn().insert(Health(100));
+        world
+            .spawn()
+            .insert(Health(50))
+            .insert(Velocity { x: 5.0, y: 5.0 });
+        world
+            .spawn()
+            .insert(Health(20))
+            .insert(Velocity { x: 10.0, y: 0.0 })
+            .insert(Position { x: 100.0, y: 30.0 });
+
+        let mut entity_count = 0;
+        world.select::<(Health, Velocity, Position)>().each(|_, _| {
+            entity_count += 1;
+        });
+
+        assert_eq!(entity_count, 1);
+    }
+
+    #[test]
+    fn query_empty_world() {
+        let world = World::new();
+
+        let mut entity_count = 0;
+        world.select::<(Health,)>().each(|_, _| {
+            entity_count += 1;
+        });
+
+        assert_eq!(entity_count, 0);
+    }
+
+    #[test]
+    fn query_with_tagged() {
+        let mut world = World::new();
+        world.spawn().insert(Health(100)).tag("player");
+        world.spawn().insert(Health(50));
+
+        let mut entity_count = 0;
+        world.select::<(Health,)>().tagged("player").each(|_, _| {
+            entity_count += 1;
+        });
+
+        assert_eq!(entity_count, 1);
+    }
+
+    #[test]
+    fn query_with_not_tagged() {
+        let mut world = World::new();
+        world.spawn().insert(Health(100)).tag("npc");
+        world.spawn().insert(Health(50)).tag("npc");
+        world.spawn().insert(Health(80));
+
+        let mut entity_count = 0;
+        world.select::<(Health,)>().not_tagged("npc").each(|_, _| {
+            entity_count += 1;
+        });
+
+        assert_eq!(entity_count, 1);
+    }
+
+    #[test]
+    fn query_multiple_tag_filters() {
+        let mut world = World::new();
+        world.spawn().insert(Health(100)).tag("npc");
+        world.spawn().insert(Health(50)).tag("npc").tag("friendly");
+        world.spawn().insert(Health(80)).tag("npc").tag("friendly");
+
+        let mut entity_count = 0;
+        world
+            .select::<(Health,)>()
+            .tagged("npc")
+            .not_tagged("friendly")
+            .each(|_, _| {
+                entity_count += 1;
+            });
+
+        assert_eq!(entity_count, 1);
+    }
+
+    #[test]
+    fn query_no_matching_tags() {
+        let mut world = World::new();
+        world.spawn().insert(Health(100)).tag("npc");
+        world.spawn().insert(Health(50)).tag("friendly");
+
+        let mut entity_count = 0;
+        world.select::<(Health,)>().tagged("player").each(|_, _| {
+            entity_count += 1;
+        });
+
+        assert_eq!(entity_count, 0);
+    }
+
+    #[test]
+    fn query_mut_modifies_components() {
+        let mut world = World::new();
+        let entity = world.spawn().insert(Health(100)).id();
+
+        world.select_mut::<(Health,)>().each(|_, components| {
+            let health = components.0;
+            health.0 -= 20;
+        });
+
+        assert_eq!(world.get::<Health>(entity).unwrap().0, 80);
+    }
+
+    #[test]
+    fn query_mut_multiple_entities() {
+        let mut world = World::new();
+        let entity = world.spawn().insert(Health(100)).id();
+        let entity2 = world.spawn().insert(Health(50)).id();
+
+        world.select_mut::<(Health,)>().each(|_, components| {
+            let health = components.0;
+            health.0 -= 20;
+        });
+
+        assert_eq!(world.get::<Health>(entity).unwrap().0, 80);
+        assert_eq!(world.get::<Health>(entity2).unwrap().0, 30);
+    }
+
+    #[test]
+    fn query_nonexistent_component() {
+        let mut world = World::new();
+        world.spawn().insert(Health(100));
+
+        let mut entity_count = 0;
+        world.select::<(Position,)>().each(|_, _| {
+            entity_count += 1;
+        });
+
+        assert_eq!(entity_count, 0);
+    }
+
+    #[test]
+    fn query_partial_match() {
+        let mut world = World::new();
+        world.spawn().insert(Health(100));
+
+        let mut entity_count = 0;
+        world.select::<(Health, Position)>().each(|_, _| {
+            entity_count += 1;
+        });
+
+        assert_eq!(entity_count, 0);
+    }
+}
