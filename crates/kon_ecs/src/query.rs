@@ -257,6 +257,7 @@ pub struct Query<'w, T> {
 }
 
 impl<'w, T: QueryTuple<'w>> Query<'w, T> {
+    #[track_caller]
     pub(crate) fn new(world: &'w World) -> Self {
         check_duplicate_types(&T::type_ids());
 
@@ -338,6 +339,7 @@ pub struct QueryMut<'w, T> {
 }
 
 impl<'w, T: QueryTupleMut<'w>> QueryMut<'w, T> {
+    #[track_caller]
     pub(crate) fn new(world: &'w mut World) -> Self {
         check_duplicate_types(&T::type_ids());
 

@@ -232,6 +232,7 @@ impl World {
     ///         println!("{:?}", pos);
     ///     });
     /// ```
+    #[track_caller]
     pub fn select<T: for<'w> QueryTuple<'w>>(&self) -> Query<'_, T> {
         Query::new(self)
     }
@@ -246,6 +247,7 @@ impl World {
     ///         pos.x += vel.x;
     ///     });
     /// ```
+    #[track_caller]
     pub fn select_mut<T: for<'w> QueryTupleMut<'w>>(&mut self) -> QueryMut<'_, T> {
         QueryMut::new(self)
     }
