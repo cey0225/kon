@@ -41,6 +41,8 @@ use std::marker::PhantomData;
 pub struct QueryFilter {
     required_tags: Vec<String>,
     excluded_tags: Vec<String>,
+    required_components: Vec<TypeId>,
+    excluded_components: Vec<TypeId>,
 }
 
 impl QueryFilter {
@@ -50,6 +52,7 @@ impl QueryFilter {
 
     /// Check if entity passes all tag filters
     pub fn matches(&self, world: &World, entity: Entity) -> bool {
+        // Tag checks
         for tag in &self.required_tags {
             if !world.has_tag(entity, tag) {
                 return false;
@@ -58,6 +61,19 @@ impl QueryFilter {
 
         for tag in &self.excluded_tags {
             if world.has_tag(entity, tag) {
+                return false;
+            }
+        }
+
+        // Component checks
+        for type_id in &self.required_components {
+            if !world.has_by_type_id(entity, type_id) {
+                return false;
+            }
+        }
+
+        for type_id in &self.excluded_components {
+            if world.has_by_type_id(entity, type_id) {
                 return false;
             }
         }
@@ -263,6 +279,18 @@ impl<'w, T: QueryTuple<'w>> Query<'w, T> {
         self
     }
 
+    /// Filters entities that have this component (without fetching it)
+    pub fn with<C: Any + Send + Sync + 'static>(mut self) -> Self {
+        self.filter.required_components.push(TypeId::of::<C>());
+        self
+    }
+
+    /// Filters entities that don't have this component
+    pub fn without<C: Any + Send + Sync + 'static>(mut self) -> Self {
+        self.filter.excluded_components.push(TypeId::of::<C>());
+        self
+    }
+
     /// Iterate over all matching entities
     pub fn each<F>(self, mut f: F)
     where
@@ -329,6 +357,18 @@ impl<'w, T: QueryTupleMut<'w>> QueryMut<'w, T> {
     /// Exclude entities with this tag
     pub fn not_tagged(mut self, tag: &str) -> Self {
         self.filter.excluded_tags.push(tag.to_string());
+        self
+    }
+
+    /// Filters entities that have this component (without fetching it)
+    pub fn with<C: Any + Send + Sync + 'static>(mut self) -> Self {
+        self.filter.required_components.push(TypeId::of::<C>());
+        self
+    }
+
+    /// Filters entities that don't have this component
+    pub fn without<C: Any + Send + Sync + 'static>(mut self) -> Self {
+        self.filter.excluded_components.push(TypeId::of::<C>());
         self
     }
 
@@ -500,6 +540,98 @@ mod tests {
 
         let mut entity_count = 0;
         world.select::<(Health,)>().tagged("player").each(|_, _| {
+            entity_count += 1;
+        });
+
+        assert_eq!(entity_count, 0);
+    }
+
+    #[test]
+    fn query_with_component() {
+        let mut world = World::new();
+        world.spawn().insert(Health(100));
+        let e = world
+            .spawn()
+            .insert(Health(50))
+            .insert(Velocity { x: 1.0, y: 5.0 })
+            .id();
+
+        let mut entity_count = 0;
+
+        world
+            .select::<(Health,)>()
+            .with::<Velocity>()
+            .each(|entity, _| {
+                entity_count += 1;
+                assert_eq!(entity, e);
+            });
+
+        assert_eq!(entity_count, 1);
+    }
+
+    #[test]
+    fn query_without_component() {
+        let mut world = World::new();
+        let e = world
+            .spawn()
+            .insert(Health(100))
+            .insert(Velocity { x: 1.0, y: 5.0 })
+            .id();
+        world
+            .spawn()
+            .insert(Health(50))
+            .insert(Velocity { x: 1.0, y: 5.0 })
+            .insert(Position { x: 10.0, y: 20.0 });
+
+        let mut entity_count = 0;
+        world
+            .select::<(Health, Velocity)>()
+            .without::<Position>()
+            .each(|entity, _| {
+                entity_count += 1;
+                assert_eq!(entity, e);
+            });
+
+        assert_eq!(entity_count, 1);
+    }
+
+    #[test]
+    fn query_multiple_component_filters() {
+        let mut world = World::new();
+        let e = world
+            .spawn()
+            .insert(Health(100))
+            .insert(Velocity { x: 1.0, y: 5.0 })
+            .id();
+        world
+            .spawn()
+            .insert(Health(50))
+            .insert(Velocity { x: 1.0, y: 5.0 })
+            .insert(Position { x: 10.0, y: 20.0 });
+
+        let mut entity_count = 0;
+        world
+            .select::<(Health,)>()
+            .with::<Velocity>()
+            .without::<Position>()
+            .each(|entity, _| {
+                entity_count += 1;
+                assert_eq!(entity, e);
+            });
+
+        assert_eq!(entity_count, 1);
+    }
+
+    #[test]
+    fn query_no_matching_components() {
+        let mut world = World::new();
+        world
+            .spawn()
+            .insert(Health(50))
+            .insert(Position { x: 10.0, y: 20.0 });
+
+        let mut entity_count = 0;
+        world.select::<(Health,)>().with::<Velocity>().each(|_, _| {
             entity_count += 1;
         });
 

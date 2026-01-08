@@ -94,9 +94,20 @@ impl World {
         &self.components
     }
 
-    /// Gets mutable components map (internal use for query system)
+    /// Gets mutable components map (internal use)
     pub(crate) fn components_mut(&mut self) -> &mut HashMap<TypeId, Box<dyn Storage>> {
         &mut self.components
+    }
+
+    /// Checks if entity has a component by TypeId (internal use)
+    pub(crate) fn has_by_type_id(&self, entity: Entity, type_id: &TypeId) -> bool {
+        if !self.is_alive(entity) {
+            return false;
+        }
+
+        self.components
+            .get(type_id)
+            .is_some_and(|s| s.contains(entity.id()))
     }
 
     /// Gets the generation for an entity id
