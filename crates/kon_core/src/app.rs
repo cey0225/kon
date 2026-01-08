@@ -89,6 +89,12 @@ impl App {
     pub fn run(&mut self) {
         log::info!("Kon Engine initialized");
 
+        // Initialize plugins (cross-plugin setup)
+        log::debug!("Calling ready() on {} plugin(s)", self.plugins.len());
+        for plugin in &self.plugins {
+            plugin.ready(&mut self.context);
+        }
+
         // Startup systems
         log::debug!("Executed {} startup system(s)", self.startup_systems.len());
         for system in &mut self.startup_systems {
@@ -106,12 +112,12 @@ impl App {
             }
 
             self.context.events.clear_all();
+        }
 
-            // Stop after 100 frames for testing
-            /*if self.context.time.frame_count() >= 100 {
-                log::info!("Test completed (100 frames)");
-                self.context.quit();
-            }*/
+        // Cleanup plugins (resource cleanup)
+        log::debug!("Cleaning up {} plugin(s)", self.plugins.len());
+        for plugin in &self.plugins {
+            plugin.cleanup(&mut self.context);
         }
 
         log::info!("Kon Engine stopped");

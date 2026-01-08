@@ -1,4 +1,4 @@
-use crate::App;
+use crate::{App, Context};
 
 /// Plugin trait for extending engine functionality
 ///
@@ -22,8 +22,8 @@ pub trait Plugin: 'static {
     fn build(&self, app: &mut App);
 
     /// Called after all plugins are loaded
-    fn ready(&self, _app: &mut App) {}
+    fn ready(&self, _ctx: &mut Context) {}
 
     /// Called when App is shutting down
-    fn cleanup(&self, _app: &mut App) {}
+    fn cleanup(&self, _ctx: &mut Context) {}
 }
