@@ -89,8 +89,10 @@ impl App {
     pub fn run(&mut self) {
         log::info!("Kon Engine initialized");
 
+        let plugin_count = self.plugins.iter().filter(|p| !p.is_plugin_group()).count();
+
         // Initialize plugins (cross-plugin setup)
-        log::debug!("Calling ready() on {} plugin(s)", self.plugins.len());
+        log::debug!("Calling ready() on {} plugin(s)", plugin_count);
         for plugin in &self.plugins {
             plugin.ready(&mut self.context);
         }
@@ -115,7 +117,7 @@ impl App {
         }
 
         // Cleanup plugins (resource cleanup)
-        log::debug!("Cleaning up {} plugin(s)", self.plugins.len());
+        log::debug!("Cleaning up {} plugin(s)", plugin_count);
         for plugin in &self.plugins {
             plugin.cleanup(&mut self.context);
         }

@@ -56,4 +56,8 @@ impl Plugin for DefaultPlugins {
     fn build(&self, app: &mut kon_core::App) {
         app.add_plugin(kon_ecs::EcsPlugin);
     }
+
+    fn is_plugin_group(&self) -> bool {
+        true
+    }
 }

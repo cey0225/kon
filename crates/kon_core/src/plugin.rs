@@ -26,4 +26,10 @@ pub trait Plugin: 'static {
 
     /// Called when App is shutting down
     fn cleanup(&self, _ctx: &mut Context) {}
+
+    /// Returns true if this is a plugin bundle that adds other plugins internally.
+    /// Used for accurate plugin count logging (e.g., DefaultPlugins).
+    fn is_plugin_group(&self) -> bool {
+        false
+    }
 }
