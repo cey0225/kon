@@ -88,27 +88,37 @@ impl QueryFilter {
 
 /// Fetch immutable reference
 pub trait Fetch<'w> {
-    type Output;
-    fn fetch(world: &'w World, entity_id: u32) -> Option<Self::Output>;
+    type Item;
+    type State;
+
+    fn init(world: &'w World) -> Option<Self::State>;
+    fn fetch(state: &Self::State, entity_id: u32) -> Option<Self::Item>;
     fn type_id() -> TypeId;
 }
 
 /// Fetch mutable reference
 pub trait FetchMut<'w> {
-    type Output;
-    fn fetch(world: &'w mut World, entity_id: u32) -> Option<Self::Output>;
+    type Item;
+    type State;
+
+    fn init(world: &'w mut World) -> Option<Self::State>;
+    fn fetch(state: &mut Self::State, entity_id: u32) -> Option<Self::Item>;
     fn type_id() -> TypeId;
 }
 
 impl<'w, T: Component> Fetch<'w> for T {
-    type Output = &'w T;
+    type Item = &'w T;
+    type State = &'w SparseSet<T>;
 
-    fn fetch(world: &'w World, entity_id: u32) -> Option<Self::Output> {
+    fn init(world: &'w World) -> Option<Self::State> {
         world
             .components()
             .get(&TypeId::of::<T>())
             .and_then(|s| s.as_any().downcast_ref::<SparseSet<T>>())
-            .and_then(|s| s.get(entity_id))
+    }
+
+    fn fetch(storage: &Self::State, entity_id: u32) -> Option<Self::Item> {
+        storage.get(entity_id)
     }
 
     fn type_id() -> TypeId {
@@ -117,14 +127,19 @@ impl<'w, T: Component> Fetch<'w> for T {
 }
 
 impl<'w, T: Component> FetchMut<'w> for T {
-    type Output = &'w mut T;
+    type Item = &'w mut T;
+    type State = *mut SparseSet<T>;
 
-    fn fetch(world: &'w mut World, entity_id: u32) -> Option<Self::Output> {
+    fn init(world: &'w mut World) -> Option<Self::State> {
         world
             .components_mut()
             .get_mut(&TypeId::of::<T>())
             .and_then(|s| s.as_any_mut().downcast_mut::<SparseSet<T>>())
-            .and_then(|s| s.get_mut(entity_id))
+            .map(|s| s as *mut SparseSet<T>)
+    }
+
+    fn fetch(storage: &mut Self::State, entity_id: u32) -> Option<Self::Item> {
+        unsafe { (*(*storage)).get_mut(entity_id) }
     }
 
     fn type_id() -> TypeId {
@@ -137,8 +152,12 @@ impl<'w, T: Component> FetchMut<'w> for T {
 // ============================================================================
 
 pub trait QueryTuple<'w> {
-    type Output;
-    fn fetch_all(world: &'w World, entity_id: u32) -> Option<Self::Output>;
+    type Item;
+    type State;
+
+    fn init_all(world: &'w World) -> Option<Self::State>;
+    fn fetch_all(state: &Self::State, entity_id: u32) -> Option<Self::Item>;
+
     fn first_type_id() -> TypeId;
     fn type_ids() -> Vec<TypeId>;
 }
@@ -148,8 +167,12 @@ pub trait QueryTuple<'w> {
 // ============================================================================
 
 pub trait QueryTupleMut<'w> {
-    type Output;
-    fn fetch_all(world: &'w mut World, entity_id: u32) -> Option<Self::Output>;
+    type Item;
+    type State;
+
+    fn init_all(world: &'w mut World) -> Option<Self::State>;
+    fn fetch_all(state: &mut Self::State, entity_id: u32) -> Option<Self::Item>;
+
     fn first_type_id() -> TypeId;
     fn type_ids() -> Vec<TypeId>;
 }
@@ -163,12 +186,23 @@ macro_rules! impl_query_tuple {
     ($first:ident $(, $rest:ident)*) => {
         // Immutable version
         impl<'w, $first: Fetch<'w>, $($rest: Fetch<'w>),*> QueryTuple<'w> for ($first, $($rest),*) {
-            type Output = ($first::Output, $($rest::Output),*);
+            type Item = ($first::Item, $($rest::Item),*);
+            type State = ($first::State, $($rest::State),*);
 
-            fn fetch_all(world: &'w World, entity_id: u32) -> Option<Self::Output> {
+            fn init_all(world: &'w World) -> Option<Self::State> {
                 Some((
-                    $first::fetch(world, entity_id)?,
-                    $($rest::fetch(world, entity_id)?),*
+                    $first::init(world)?,
+                    $($rest::init(world)?),*
+                ))
+            }
+
+            fn fetch_all(state: &Self::State, entity_id: u32) -> Option<Self::Item> {
+                #[allow(non_snake_case)]
+                let (first_state, $($rest),*) = state;
+
+                Some((
+                    $first::fetch(first_state, entity_id)?,
+                    $($rest::fetch($rest, entity_id)?),*
                 ))
             }
 
@@ -186,17 +220,27 @@ macro_rules! impl_query_tuple {
 
         // Mutable version
         impl<'w, $first: FetchMut<'w>, $($rest: FetchMut<'w>),*> QueryTupleMut<'w> for ($first, $($rest),*) {
-            type Output = ($first::Output, $($rest::Output),*);
+            type Item = ($first::Item, $($rest::Item),*);
+            type State = ($first::State, $($rest::State),*);
 
-            fn fetch_all(world: &'w mut World, entity_id: u32) -> Option<Self::Output> {
-                // SAFETY: We fetch different component types, no aliasing
+            fn init_all(world: &'w mut World) -> Option<Self::State> {
                 let world_ptr = world as *mut World;
                 unsafe {
                     Some((
-                        $first::fetch(&mut *world_ptr, entity_id)?,
-                        $($rest::fetch(&mut *world_ptr, entity_id)?),*
+                        $first::init(&mut *world_ptr)?,
+                        $($rest::init(&mut *world_ptr)?),*
                     ))
                 }
+            }
+
+            fn fetch_all(state: &mut Self::State, entity_id: u32) -> Option<Self::Item> {
+                #[allow(non_snake_case)]
+                let (first_state, $($rest),*) = state;
+
+                Some((
+                    $first::fetch(first_state, entity_id)?,
+                    $($rest::fetch($rest, entity_id)?),*
+                ))
             }
 
             fn first_type_id() -> TypeId {
@@ -295,10 +339,14 @@ impl<'w, T: QueryTuple<'w>> Query<'w, T> {
     /// Iterate over all matching entities
     pub fn each<F>(self, mut f: F)
     where
-        F: FnMut(Entity, T::Output),
+        F: FnMut(Entity, T::Item),
     {
-        let first_type_id = T::first_type_id();
+        let state = match T::init_all(self.world) {
+            Some(s) => s,
+            None => return,
+        };
 
+        let first_type_id = T::first_type_id();
         let entity_ids: Vec<u32> = match self.world.components().get(&first_type_id) {
             Some(storage) => storage.entity_ids(),
             None => return,
@@ -311,7 +359,7 @@ impl<'w, T: QueryTuple<'w>> Query<'w, T> {
                 continue;
             }
 
-            if let Some(components) = T::fetch_all(self.world, id) {
+            if let Some(components) = T::fetch_all(&state, id) {
                 f(entity, components);
             }
         }
@@ -377,25 +425,35 @@ impl<'w, T: QueryTupleMut<'w>> QueryMut<'w, T> {
     /// Iterate over all matching entities
     pub fn each<F>(self, mut f: F)
     where
-        F: FnMut(Entity, T::Output),
+        F: FnMut(Entity, T::Item),
     {
-        let first_type_id = T::first_type_id();
+        let world_ptr = self.world as *mut World;
 
-        let entity_ids: Vec<u32> = match self.world.components().get(&first_type_id) {
-            Some(storage) => storage.entity_ids(),
-            None => return,
+        let mut state = unsafe {
+            match T::init_all(&mut *world_ptr) {
+                Some(s) => s,
+                None => return,
+            }
+        };
+
+        let first_type_id = T::first_type_id();
+        let entity_ids: Vec<u32> = unsafe {
+            match (*world_ptr).components_mut().get_mut(&first_type_id) {
+                Some(storage) => storage.entity_ids(),
+                None => return,
+            }
         };
 
         for id in entity_ids {
-            let entity = Entity::from_raw(id, self.world.generation(id));
+            let generation = unsafe { (*world_ptr).generation(id) };
+            let entity = Entity::from_raw(id, generation);
 
-            if !self.filter.matches(self.world, entity) {
+            let matches = unsafe { self.filter.matches(&*world_ptr, entity) };
+            if !matches {
                 continue;
             }
 
-            // SAFETY: We collect entity_ids first, then fetch components
-            let world_ptr = self.world as *mut World;
-            if let Some(components) = T::fetch_all(unsafe { &mut *world_ptr }, id) {
+            if let Some(components) = T::fetch_all(&mut state, id) {
                 f(entity, components);
             }
         }
