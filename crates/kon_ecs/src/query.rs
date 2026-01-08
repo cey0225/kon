@@ -27,8 +27,8 @@
 
 use crate::entity::Entity;
 use crate::storage::SparseSet;
-use crate::World;
-use std::any::{Any, TypeId};
+use crate::{Component, World};
+use std::any::TypeId;
 use std::collections::HashSet;
 use std::marker::PhantomData;
 
@@ -100,7 +100,7 @@ pub trait FetchMut<'w> {
     fn type_id() -> TypeId;
 }
 
-impl<'w, T: Any + Send + Sync + 'static> Fetch<'w> for T {
+impl<'w, T: Component> Fetch<'w> for T {
     type Output = &'w T;
 
     fn fetch(world: &'w World, entity_id: u32) -> Option<Self::Output> {
@@ -116,7 +116,7 @@ impl<'w, T: Any + Send + Sync + 'static> Fetch<'w> for T {
     }
 }
 
-impl<'w, T: Any + Send + Sync + 'static> FetchMut<'w> for T {
+impl<'w, T: Component> FetchMut<'w> for T {
     type Output = &'w mut T;
 
     fn fetch(world: &'w mut World, entity_id: u32) -> Option<Self::Output> {
@@ -280,13 +280,13 @@ impl<'w, T: QueryTuple<'w>> Query<'w, T> {
     }
 
     /// Filters entities that have this component (without fetching it)
-    pub fn with<C: Any + Send + Sync + 'static>(mut self) -> Self {
+    pub fn with<C: Component>(mut self) -> Self {
         self.filter.required_components.push(TypeId::of::<C>());
         self
     }
 
     /// Filters entities that don't have this component
-    pub fn without<C: Any + Send + Sync + 'static>(mut self) -> Self {
+    pub fn without<C: Component>(mut self) -> Self {
         self.filter.excluded_components.push(TypeId::of::<C>());
         self
     }
@@ -361,13 +361,13 @@ impl<'w, T: QueryTupleMut<'w>> QueryMut<'w, T> {
     }
 
     /// Filters entities that have this component (without fetching it)
-    pub fn with<C: Any + Send + Sync + 'static>(mut self) -> Self {
+    pub fn with<C: Component>(mut self) -> Self {
         self.filter.required_components.push(TypeId::of::<C>());
         self
     }
 
     /// Filters entities that don't have this component
-    pub fn without<C: Any + Send + Sync + 'static>(mut self) -> Self {
+    pub fn without<C: Component>(mut self) -> Self {
         self.filter.excluded_components.push(TypeId::of::<C>());
         self
     }

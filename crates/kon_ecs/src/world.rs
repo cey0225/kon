@@ -1,11 +1,11 @@
 //! ECS World - entity and component management.
 
+use crate::Component;
 use crate::entity::{Entity, EntityBuilder};
 use crate::query::{Query, QueryMut, QueryTuple, QueryTupleMut};
 use crate::storage::{SparseSet, Storage};
-use std::any::{Any, TypeId};
+use std::any::TypeId;
 use std::collections::{HashMap, HashSet};
-use std::fmt::Debug;
 
 type DeferredOp = Box<dyn FnOnce(&mut World) + Send + Sync>;
 
@@ -136,7 +136,7 @@ impl World {
     }
 
     /// Inserts a component to an entity
-    pub fn insert<C: Any + Send + Sync + Debug + 'static>(&mut self, entity: Entity, component: C) {
+    pub fn insert<C: Component>(&mut self, entity: Entity, component: C) {
         if !self.is_alive(entity) {
             return;
         }
@@ -152,7 +152,7 @@ impl World {
     }
 
     /// Removes a component from an entity
-    pub fn remove<C: Any + Send + Sync + 'static>(&mut self, entity: Entity) -> bool {
+    pub fn remove<C: Component>(&mut self, entity: Entity) -> bool {
         if !self.is_alive(entity) {
             return false;
         }
@@ -164,7 +164,7 @@ impl World {
     }
 
     /// Gets a component reference
-    pub fn get<C: Any + Send + Sync + 'static>(&self, entity: Entity) -> Option<&C> {
+    pub fn get<C: Component>(&self, entity: Entity) -> Option<&C> {
         if !self.is_alive(entity) {
             return None;
         }
@@ -176,7 +176,7 @@ impl World {
     }
 
     /// Gets a mutable component reference
-    pub fn get_mut<C: Any + Send + Sync + 'static>(&mut self, entity: Entity) -> Option<&mut C> {
+    pub fn get_mut<C: Component>(&mut self, entity: Entity) -> Option<&mut C> {
         if !self.is_alive(entity) {
             return None;
         }
@@ -188,7 +188,7 @@ impl World {
     }
 
     /// Checks if entity has a component
-    pub fn has<C: Any + Send + Sync + 'static>(&self, entity: Entity) -> bool {
+    pub fn has<C: Component>(&self, entity: Entity) -> bool {
         if !self.is_alive(entity) {
             return false;
         }

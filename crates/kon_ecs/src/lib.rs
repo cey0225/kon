@@ -43,6 +43,13 @@ mod query;
 mod storage;
 mod world;
 
+use std::{any::Any, fmt::Debug};
+
+/// Base trait for all components.
+/// Automatically implemented for types that are Any + Send + Sync + Debug + 'static.
+pub trait Component: Any + Send + Sync + Debug + 'static {}
+impl<T: Any + Send + Sync + Debug + 'static> Component for T {}
+
 pub use entity::{Entity, EntityBuilder};
 pub use ext::ContextEcsExt;
 pub use plugin::EcsPlugin;

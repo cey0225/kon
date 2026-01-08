@@ -1,7 +1,7 @@
 //! Entity identifier with generation for safe references.
 
-use std::any::Any;
 use std::fmt::Debug;
+use crate::Component;
 
 /// Unique entity identifier
 ///
@@ -56,7 +56,7 @@ impl<'w> EntityBuilder<'w> {
     }
 
     /// Inserts a component
-    pub fn insert<C: Any + Send + Sync + Debug + 'static>(self, component: C) -> Self {
+    pub fn insert<C: Component>(self, component: C) -> Self {
         self.world.insert(self.entity, component);
         self
     }

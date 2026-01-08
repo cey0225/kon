@@ -3,7 +3,7 @@
 //! Component storage using SparseSet.
 
 use std::any::Any;
-use std::fmt::Debug;
+use crate::Component;
 
 /// Fast component storage with O(1) operations
 pub struct SparseSet<T> {
@@ -112,7 +112,7 @@ pub trait Storage: Any + Send + Sync {
     fn debug_entry(&self, entity_id: u32) -> Option<String>;
 }
 
-impl<T: Any + Send + Sync + Debug + 'static> Storage for SparseSet<T> {
+impl<T: Component> Storage for SparseSet<T> {
     fn as_any(&self) -> &dyn Any {
         self
     }
