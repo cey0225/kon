@@ -64,10 +64,10 @@ impl Events {
     /// Clears all events of a specific type
     pub fn clear<E: Event>(&mut self) {
         let type_id = TypeId::of::<E>();
-        if let Some(queue) = self.queues.get_mut(&type_id) {
-            if let Some(vec) = queue.downcast_mut::<Vec<E>>() {
-                vec.clear();
-            }
+        if let Some(queue) = self.queues.get_mut(&type_id)
+            && let Some(vec) = queue.downcast_mut::<Vec<E>>()
+        {
+            vec.clear();
         }
     }
 

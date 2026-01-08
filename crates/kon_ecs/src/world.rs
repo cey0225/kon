@@ -7,6 +7,8 @@ use std::any::{Any, TypeId};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
+type DeferredOp = Box<dyn FnOnce(&mut World) + Send + Sync>;
+
 /// ECS World
 ///
 /// # Example
@@ -39,7 +41,7 @@ pub struct World {
     free_ids: Vec<u32>,
     components: HashMap<TypeId, Box<dyn Storage>>,
     tags: HashMap<u32, HashSet<String>>,
-    deferred: Vec<Box<dyn FnOnce(&mut World) + Send + Sync>>,
+    deferred: Vec<DeferredOp>,
 }
 
 impl Default for World {

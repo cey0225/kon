@@ -35,19 +35,19 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let valid = match &params[0] {
         FnArg::Typed(PatType { ty, .. }) => match ty.as_ref() {
             Type::Reference(r) => {
-                if r.mutability.is_none() {
-                    false;
-                }
-
-                match r.elem.as_ref() {
-                    Type::Path(type_path) => {
-                        if let Some(last_segment) = type_path.path.segments.last() {
-                            last_segment.ident == "Context"
-                        } else {
-                            false
+                if r.mutability.is_some() {
+                    match r.elem.as_ref() {
+                        Type::Path(type_path) => {
+                            if let Some(last_segment) = type_path.path.segments.last() {
+                                last_segment.ident == "Context"
+                            } else {
+                                false
+                            }
                         }
+                        _ => false,
                     }
-                    _ => false,
+                } else {
+                    false
                 }
             }
             _ => false,
@@ -56,7 +56,7 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     if !valid {
-        return syn::Error::new_spanned(&params[0], "System parameter must be: ctx: &mut Context")
+        return syn::Error::new_spanned(params[0], "System parameter must be: ctx: &mut Context")
             .to_compile_error()
             .into();
     }
