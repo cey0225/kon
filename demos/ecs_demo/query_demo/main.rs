@@ -1,4 +1,4 @@
-//! Query Demo - Demonstrates tuple-based query syntax
+//! Query Demo - Showcase tuple-based queries with with/without filters
 
 use kon::prelude::*;
 
@@ -15,84 +15,97 @@ struct Velocity {
 }
 
 #[component]
+struct Health(f32);
+
+#[component]
 struct Name(String);
+
+/// Marker component for damage reduction
+#[component]
+struct Armor;
 
 #[system]
 fn setup(ctx: &mut Context) {
-    println!("=== Query Demo ===\n");
+    println!("=== Query Demo: Advanced Filtering ===\n");
 
-    // Entity with all components
+    // Armored player
     ctx.world_mut()
         .spawn()
         .insert(Name("Player".into()))
         .insert(Position { x: 0.0, y: 0.0 })
-        .insert(Velocity { x: 1.0, y: 2.0 })
+        .insert(Velocity { x: 1.0, y: 1.0 })
+        .insert(Health(100.0))
+        .insert(Armor)
         .id();
 
-    // Entity with only Position
+    // Standard enemy
+    ctx.world_mut()
+        .spawn()
+        .insert(Name("Enemy".into()))
+        .insert(Position { x: 5.0, y: 5.0 })
+        .insert(Velocity { x: -1.0, y: 0.0 })
+        .insert(Health(100.0))
+        .id();
+
+    // Static object
     ctx.world_mut()
         .spawn()
         .insert(Name("Rock".into()))
         .insert(Position { x: 10.0, y: 10.0 })
         .id();
 
-    // Entity with Position and Velocity
-    ctx.world_mut()
-        .spawn()
-        .insert(Name("Enemy".into()))
-        .insert(Position { x: 5.0, y: 5.0 })
-        .insert(Velocity { x: -1.0, y: 0.0 })
-        .id();
-
-    println!("[SETUP] Created 3 entities\n");
+    println!("[SETUP] Entities initialized\n");
     ctx.world().inspect();
-    println!();
 }
 
 #[system]
-fn query_single(ctx: &mut Context) {
-    println!("[Single Component Query] - All entities with Position:");
-
-    ctx.world().select::<(Position,)>().each(|entity, (pos,)| {
-        println!("  {:?} at ({}, {})", entity, pos.x, pos.y);
-    });
-
-    println!();
-}
-
-#[system]
-fn query_multiple(ctx: &mut Context) {
-    println!("[Multi Component Query] - Entities with Position AND Velocity:");
-
-    ctx.world()
-        .select::<(Position, Velocity)>()
-        .each(|entity, (pos, vel)| {
-            println!(
-                "  {:?} at ({}, {}) moving ({}, {})",
-                entity, pos.x, pos.y, vel.x, vel.y
-            );
-        });
-
-    println!();
-}
-
-#[system]
-fn query_mutate(ctx: &mut Context) {
-    println!("[Mutable Query] - Moving entities:");
+fn movement_system(ctx: &mut Context) {
+    println!("[Movement] Updating moving entities:");
 
     ctx.world_mut()
         .select_mut::<(Position, Velocity)>()
         .each(|entity, (pos, vel)| {
-            let old_x = pos.x;
-            let old_y = pos.y;
             pos.x += vel.x;
             pos.y += vel.y;
-            println!(
-                "  {:?} ({}, {}) → ({}, {})",
-                entity, old_x, old_y, pos.x, pos.y
-            );
+            println!("  {:?} moved to ({:.1}, {:.1})", entity, pos.x, pos.y);
+        });
+    println!();
+}
+
+#[system]
+fn combat_system(ctx: &mut Context) {
+    println!("[Combat] Applying environmental damage:");
+
+    // Apply full damage to non-armored entities
+    ctx.world_mut()
+        .select_mut::<(Health,)>()
+        .without::<Armor>()
+        .each(|entity, (hp,)| {
+            hp.0 -= 20.0;
+            println!("  {:?} (No Armor) took 20 damage. HP: {:.1}", entity, hp.0);
         });
 
+    // Apply reduced damage to armored entities
+    ctx.world_mut()
+        .select_mut::<(Health,)>()
+        .with::<Armor>()
+        .each(|entity, (hp,)| {
+            hp.0 -= 5.0;
+            println!("  {:?} (Armored) took 5 damage. HP: {:.1}", entity, hp.0);
+        });
+    println!();
+}
+
+#[system]
+fn debug_system(ctx: &mut Context) {
+    println!("[Filter Debug] Entities with Name but no Velocity (Static):");
+
+    ctx.world()
+        .select::<(Name,)>()
+        .without::<Velocity>()
+        .each(|entity, (name,)| {
+            println!("  {:?} is static: {}", entity, name.0);
+        });
     println!();
 }
 
@@ -107,9 +120,9 @@ fn main() {
     Kon::new()
         .add_plugin(DefaultPlugins)
         .add_startup_system(setup)
-        .add_system(query_single)
-        .add_system(query_multiple)
-        .add_system(query_mutate)
+        .add_system(movement_system)
+        .add_system(combat_system)
+        .add_system(debug_system)
         .add_system(done)
         .run();
 }
