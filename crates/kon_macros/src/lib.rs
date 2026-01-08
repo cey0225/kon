@@ -35,20 +35,8 @@ pub fn system(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let valid = match &params[0] {
         FnArg::Typed(PatType { ty, .. }) => match ty.as_ref() {
             Type::Reference(r) => {
-                if r.mutability.is_some() {
-                    match r.elem.as_ref() {
-                        Type::Path(type_path) => {
-                            if let Some(last_segment) = type_path.path.segments.last() {
-                                last_segment.ident == "Context"
-                            } else {
-                                false
-                            }
-                        }
-                        _ => false,
-                    }
-                } else {
-                    false
-                }
+                r.mutability.is_some()
+                    && matches!(r.elem.as_ref(), Type::Path(type_path) if type_path.path.segments.last().is_some_and(|s| s.ident == "Context"))
             }
             _ => false,
         },
