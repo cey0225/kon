@@ -39,10 +39,12 @@ use std::marker::PhantomData;
 /// Filter configuration for tag-based filtering
 #[derive(Default, Clone)]
 pub struct QueryFilter {
-    required_tags: Vec<String>,
-    excluded_tags: Vec<String>,
+    required_mask: u128,
+    excluded_mask: u128,
     required_components: Vec<TypeId>,
     excluded_components: Vec<TypeId>,
+    /// Set to true if a query requires a tag that has never been registered.
+    impossible: bool,
 }
 
 impl QueryFilter {
@@ -50,22 +52,22 @@ impl QueryFilter {
         Self::default()
     }
 
-    /// Check if entity passes all tag filters
+    /// Check if entity passes bitmask and component filters.
+    #[inline(always)]
     pub fn matches(&self, world: &World, entity: Entity) -> bool {
-        // Tag checks
-        for tag in &self.required_tags {
-            if !world.has_tag(entity, tag) {
-                return false;
-            }
+        if self.impossible {
+            return false;
         }
 
-        for tag in &self.excluded_tags {
-            if world.has_tag(entity, tag) {
-                return false;
-            }
+        let entity_mask = world.get_tag_mask(entity.id());
+        if (entity_mask & self.required_mask) != self.required_mask {
+            return false;
         }
 
-        // Component checks
+        if (entity_mask & self.excluded_mask) != 0 {
+            return false;
+        }
+
         for type_id in &self.required_components {
             if !world.has_by_type_id(entity, type_id) {
                 return false;
@@ -314,13 +316,21 @@ impl<'w, T: QueryTuple<'w>> Query<'w, T> {
 
     /// Require entities to have this tag
     pub fn tagged(mut self, tag: &str) -> Self {
-        self.filter.required_tags.push(tag.to_string());
+        if let Some(tag_id) = self.world.get_tag_id(tag) {
+            self.filter.required_mask |= 1 << tag_id
+        } else {
+            self.filter.impossible = true
+        }
+
         self
     }
 
     /// Exclude entities with this tag
     pub fn not_tagged(mut self, tag: &str) -> Self {
-        self.filter.excluded_tags.push(tag.to_string());
+        if let Some(tag_id) = self.world.get_tag_id(tag) {
+            self.filter.excluded_mask |= 1 << tag_id
+        }
+
         self
     }
 
@@ -337,6 +347,7 @@ impl<'w, T: QueryTuple<'w>> Query<'w, T> {
     }
 
     /// Iterate over all matching entities
+    #[inline(always)]
     pub fn each<F>(self, mut f: F)
     where
         F: FnMut(Entity, T::Item),
@@ -400,13 +411,21 @@ impl<'w, T: QueryTupleMut<'w>> QueryMut<'w, T> {
 
     /// Require entities to have this tag
     pub fn tagged(mut self, tag: &str) -> Self {
-        self.filter.required_tags.push(tag.to_string());
+        if let Some(tag_id) = self.world.get_tag_id(tag) {
+            self.filter.required_mask |= 1 << tag_id
+        } else {
+            self.filter.impossible = true
+        }
+
         self
     }
 
     /// Exclude entities with this tag
     pub fn not_tagged(mut self, tag: &str) -> Self {
-        self.filter.excluded_tags.push(tag.to_string());
+        if let Some(tag_id) = self.world.get_tag_id(tag) {
+            self.filter.excluded_mask |= 1 << tag_id
+        }
+
         self
     }
 
@@ -423,6 +442,7 @@ impl<'w, T: QueryTupleMut<'w>> QueryMut<'w, T> {
     }
 
     /// Iterate over all matching entities
+    #[inline(always)]
     pub fn each<F>(self, mut f: F)
     where
         F: FnMut(Entity, T::Item),

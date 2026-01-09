@@ -40,7 +40,16 @@ pub struct World {
     alive: HashSet<u32>,
     free_ids: Vec<u32>,
     components: HashMap<TypeId, Box<dyn Storage>>,
-    tags: HashMap<u32, HashSet<String>>,
+
+    /// Mapping of tag names to their respective bit indices (0-127).
+    tag_registry: HashMap<String, usize>,
+
+    /// List of tag names indexed by their bit position. Used for debugging and inspection.
+    tag_names: Vec<String>,
+
+    /// Bitmask for each entity storing active tags. Indexed by Entity ID.
+    entity_tags: Vec<u128>,
+
     deferred: Vec<DeferredOp>,
 }
 
@@ -59,7 +68,9 @@ impl World {
             alive: HashSet::new(),
             free_ids: Vec::new(),
             components: HashMap::new(),
-            tags: HashMap::new(),
+            tag_registry: HashMap::new(),
+            tag_names: Vec::new(),
+            entity_tags: Vec::new(),
             deferred: Vec::new(),
         }
     }
@@ -127,7 +138,10 @@ impl World {
             storage.remove(id);
         }
 
-        self.tags.remove(&id);
+        if (id as usize) < self.entity_tags.len() {
+            self.entity_tags[id as usize] = 0;
+        }
+
         self.alive.remove(&id);
         self.generations[id as usize] = self.generations[id as usize].wrapping_add(1);
         self.free_ids.push(id);
@@ -198,28 +212,94 @@ impl World {
             .is_some_and(|s| s.contains(entity.id()))
     }
 
-    /// Adds a tag to an entity
+    /// Internal helper to map a tag name to a bit index (0-127).
+    /// If the tag doesn't exist, it registers a new index.
+    #[track_caller]
+    fn get_or_create_tag_id(&mut self, tag: &str) -> usize {
+        if let Some(&id) = self.tag_registry.get(tag) {
+            id
+        } else {
+            let id = self.tag_registry.len();
+            assert!(id < 128, "ECS only supports up to 128 unique tags");
+            self.tag_registry.insert(tag.to_string(), id);
+            self.tag_names.push(tag.to_string());
+            id
+        }
+    }
+
+    /// Returns the bit index of a tag if it exists in the registry.
+    pub(crate) fn get_tag_id(&self, tag: &str) -> Option<usize> {
+        self.tag_registry.get(tag).copied()
+    }
+
+    /// Returns true if the entity has the specified tag.
+    ///
+    /// This operation is O(1) after the initial tag name lookup.
+    #[inline(always)]
+    pub fn has_tag(&self, entity: Entity, tag: &str) -> bool {
+        if let Some(&tag_id) = self.tag_registry.get(tag) {
+            let mask = self.get_tag_mask(entity.id());
+            (mask & (1 << tag_id)) != 0
+        } else {
+            false
+        }
+    }
+
+    /// Attaches a tag to an entity using a high-performance bitmask system.
+    ///
+    /// # Panics
+    /// Panics if more than 128 unique tags are created globally.
+    #[track_caller]
     pub fn tag(&mut self, entity: Entity, tag: &str) {
         if !self.is_alive(entity) {
             return;
         }
 
-        self.tags
-            .entry(entity.id())
-            .or_default()
-            .insert(tag.to_string());
+        let tag_id = self.get_or_create_tag_id(tag);
+        let id = entity.id() as usize;
+
+        if id >= self.entity_tags.len() {
+            self.entity_tags.resize(id + 1, 0);
+        }
+
+        self.entity_tags[id] |= 1 << tag_id;
     }
 
-    /// Removes a tag from an entity
+    /// Removes a tag from an entity by clearing its corresponding bit.
     pub fn untag(&mut self, entity: Entity, tag: &str) {
-        if let Some(tags) = self.tags.get_mut(&entity.id()) {
-            tags.remove(tag);
+        if let Some(&tag_id) = self.tag_registry.get(tag) {
+            let id = entity.id() as usize;
+            if id < self.entity_tags.len() {
+                self.entity_tags[id] &= !(1 << tag_id);
+            }
         }
     }
 
-    /// Checks if entity has a tag
-    pub fn has_tag(&self, entity: Entity, tag: &str) -> bool {
-        self.tags.get(&entity.id()).is_some_and(|t| t.contains(tag))
+    /// Returns a list of tag names associated with an entity.
+    /// Primarily used for inspection and debugging.
+    pub fn get_entity_tags(&self, entity_id: u32) -> Vec<String> {
+        let mut names = Vec::new();
+
+        if let Some(&mask) = self.entity_tags.get(entity_id as usize) {
+            for i in 0..self.tag_names.len() {
+                if (mask & (1 << i)) != 0 {
+                    names.push(self.tag_names[i].clone());
+                }
+            }
+        }
+
+        names
+    }
+
+    /// Returns a bitmask representing all tags assigned to an entity.
+    ///
+    /// This is used internally by the query system for O(1) tag filtering.
+    #[inline(always)]
+    pub(crate) fn get_tag_mask(&self, entity_id: u32) -> u128 {
+        self.entity_tags
+            .get(entity_id as usize)
+            .copied()
+            .unwrap_or(0)
     }
 
     /// Starts an immutable query
@@ -403,11 +483,7 @@ impl World {
             let generation = self.generations[*id as usize];
             let entity = Entity::new(*id, generation);
 
-            let tags: Vec<_> = self
-                .tags
-                .get(id)
-                .map(|t| t.iter().cloned().collect())
-                .unwrap_or_default();
+            let tags = self.get_entity_tags(*id);
             let tags_str = if tags.is_empty() {
                 "-".to_string()
             } else {
@@ -629,7 +705,7 @@ mod tests {
         world.tag(entity, "friendly");
         world.tag(entity, "tradeable");
         world.destroy(entity);
-        assert_eq!(world.tags.len(), 0);
+        assert_eq!(world.get_tag_mask(entity.id()), 0);
     }
 
     #[test]
@@ -716,5 +792,17 @@ mod tests {
         });
         world.apply_deferred();
         assert_eq!(world.deferred.len(), 0);
+    }
+
+    #[test]
+    #[should_panic]
+    fn world_tag_limit_panic() {
+        let mut world = World::new();
+        let entity = world.spawn().id();
+
+        for i in 0..129 {
+            let tag_name = format!("tag_{}", i);
+            world.tag(entity, &tag_name);
+        }
     }
 }

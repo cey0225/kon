@@ -39,6 +39,7 @@ impl<T> SparseSet<T> {
         }
     }
 
+    #[inline(always)]
     pub fn get(&self, entity_id: u32) -> Option<&T> {
         let id = entity_id as usize;
         if id >= self.sparse.len() {
@@ -53,6 +54,7 @@ impl<T> SparseSet<T> {
         Some(&self.dense[dense_idx])
     }
 
+    #[inline(always)]
     pub fn get_mut(&mut self, entity_id: u32) -> Option<&mut T> {
         let id = entity_id as usize;
         if id >= self.sparse.len() {
