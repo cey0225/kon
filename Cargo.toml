@@ -49,3 +49,14 @@ kon_renderer = { path = "crates/kon_renderer" }
 kon_input = { path = "crates/kon_input" }
 kon_physics = { path = "crates/kon_physics" }
 kon_macros = { path = "crates/kon_macros" }
+
+[profile.release]
+debug = true
+
+[[bin]]
+name = "ecs_stress"
+path = "stress_tests/ecs_stress.rs"
+
+[[bin]]
+name = "bottleneck_test"
+path = "stress_tests/bottleneck_test.rs"
