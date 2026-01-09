@@ -16,16 +16,8 @@ log = "0.4.29"
 resolver = "2"
 members = [
     "editor",
-    "crates/kon_core",
-    "crates/kon_math",
-    "crates/kon_ecs",
-    "crates/kon_window",
-    "crates/kon_renderer",
-    "crates/kon_input",
-    "crates/kon_physics",
-    "crates/kon_macros",
-    "demos/ecs_demo",
-    "demos/app_demo"
+    "crates/*",
+    "demos/*"
 ]
 
 [workspace.package]

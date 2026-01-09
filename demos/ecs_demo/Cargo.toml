@@ -18,3 +18,7 @@ path = "tag_demo/main.rs"
 [[bin]]
 name = "lifecycle_demo"
 path = "lifecycle_demo/main.rs"
+
+[[bin]]
+name = "storage_layout_demo"
+path = "storage_layout_demo/main.rs"
