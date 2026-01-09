@@ -26,7 +26,7 @@ The engine is organized as a workspace with independent modules:
 ## Features
 
 - [x] **Modular Architecture:** Plugin-based design.
-- [x] **Custom ECS:** High-performance SparseSet storage.
+- [x] **High-Performance ECS:** Custom SparseSet storage with O(1) bitmask tagging and zero-allocation queries.
 - [x] **Ergonomic API:** Write systems as normal Rust functions.
 - [x] **Tuple-based Queries:** Type-safe iteration (e.g., `Query<(Pos, Vel)>`).
 - [x] **Event Signals:** Decoupled communication between systems.
@@ -35,6 +35,22 @@ The engine is organized as a workspace with independent modules:
 - [ ] **Rendering:** Hardware accelerated 2D graphics.
 - [ ] **Physics:** Collision detection and rigid body dynamics.
 - [ ] **Editor:** Integrated development tools.
+
+## Performance Analysis
+
+Kon Engine is architected for maximum throughput. Below are the flamegraphs demonstrating the engine's performance under extreme conditions.
+
+### ECS Stress Test (100k Entities)
+This test simulates 100,000 entities being updated by multiple systems. The minimal overhead in `each` calls demonstrates the efficiency of the zero-allocation query system.
+
+![ECS Stress Test](assets/ecs_stress_flamegraph.svg)
+*[Click to view interactive version](./assets/ecs_stress_flamegraph.svg)*
+
+### Heavy Component Bottleneck Test
+This test uses 10,000 entities with "Heavy" components (100x f32 each). The results show that the engine is memory-bound rather than logic-bound, proving the efficiency of SparseSet storage hoisting.
+
+![Bottleneck Test](assets/bottleneck_test_flamegraph.svg)
+*[Click to view interactive version](./assets/bottleneck_test_flamegraph.svg)*
 
 ## Usage Example
 
