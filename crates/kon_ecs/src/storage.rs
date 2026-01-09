@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 //! Component storage using SparseSet.
 
 use std::any::Any;
@@ -7,10 +5,12 @@ use crate::Component;
 
 /// Fast component storage with O(1) operations
 pub struct SparseSet<T> {
-    sparse: Vec<Option<usize>>,
+    sparse: Vec<usize>,
     dense: Vec<T>,
     entities: Vec<u32>,
 }
+
+const NONE: usize = usize::MAX;
 
 impl<T> SparseSet<T> {
     pub fn new() -> Self {
@@ -25,14 +25,15 @@ impl<T> SparseSet<T> {
         let id = entity_id as usize;
 
         if id >= self.sparse.len() {
-            self.sparse.resize(id + 1, None);
+            self.sparse.resize(id + 1, NONE);
         }
 
-        if let Some(dense_idx) = self.sparse[id] {
+        if self.sparse[id] != NONE {
+            let dense_idx = self.sparse[id];
             self.dense[dense_idx] = value;
         } else {
             let dense_idx = self.dense.len();
-            self.sparse[id] = Some(dense_idx);
+            self.sparse[id] = dense_idx;
             self.dense.push(value);
             self.entities.push(entity_id);
         }
@@ -40,19 +41,43 @@ impl<T> SparseSet<T> {
 
     pub fn get(&self, entity_id: u32) -> Option<&T> {
         let id = entity_id as usize;
-        let idx = (*self.sparse.get(id)?)?;
-        Some(&self.dense[idx])
+        if id >= self.sparse.len() {
+            return None;
+        }
+
+        let dense_idx = self.sparse[id];
+        if dense_idx == NONE {
+            return None;
+        }
+
+        Some(&self.dense[dense_idx])
     }
 
     pub fn get_mut(&mut self, entity_id: u32) -> Option<&mut T> {
         let id = entity_id as usize;
-        let idx = (*self.sparse.get(id)?)?;
-        Some(&mut self.dense[idx])
+        if id >= self.sparse.len() {
+            return None;
+        }
+
+        let dense_idx = self.sparse[id];
+        if dense_idx == NONE {
+            return None;
+        }
+
+        Some(&mut self.dense[dense_idx])
     }
 
     pub fn remove(&mut self, entity_id: u32) -> Option<T> {
         let id = entity_id as usize;
-        let dense_idx = self.sparse.get_mut(id)?.take()?;
+        if id >= self.sparse.len() {
+            return None;
+        }
+
+        let dense_idx = self.sparse[id];
+        if dense_idx == NONE {
+            return None;
+        }
+        self.sparse[id] = NONE;
 
         if self.dense.is_empty() {
             return None;
@@ -62,7 +87,7 @@ impl<T> SparseSet<T> {
 
         if dense_idx < self.dense.len() - 1 {
             self.entities[dense_idx] = last_entity;
-            self.sparse[last_entity as usize] = Some(dense_idx);
+            self.sparse[last_entity as usize] = dense_idx;
         }
 
         self.entities.pop();
@@ -71,7 +96,12 @@ impl<T> SparseSet<T> {
 
     pub fn contains(&self, entity_id: u32) -> bool {
         let id = entity_id as usize;
-        self.sparse.get(id).is_some_and(|s| s.is_some())
+        if id >= self.sparse.len() {
+            return false;
+        }
+
+        let dense_idx = self.sparse[id];
+        dense_idx != NONE
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (u32, &T)> {
