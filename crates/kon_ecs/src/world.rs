@@ -129,7 +129,7 @@ impl World {
 
         self.tags.remove(&id);
         self.alive.remove(&id);
-        self.generations[id as usize] += 1;
+        self.generations[id as usize] = self.generations[id as usize].wrapping_add(1);
         self.free_ids.push(id);
 
         true
