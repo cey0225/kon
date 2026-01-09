@@ -4,7 +4,9 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Core functionality for Kon Engine"
+repository.workspace = true
+homepage.workspace = true
+description = "Core internal utilities for the Kon Engine."
 
 [dependencies]
 log.workspace = true

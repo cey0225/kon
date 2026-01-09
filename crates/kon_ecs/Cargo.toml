@@ -4,7 +4,9 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Entity Component System for Kon Engine"
+repository.workspace = true
+homepage.workspace = true
+description = "High-performance SparseSet-based ECS for the Kon Engine."
 
 [dependencies]
 log.workspace = true

@@ -102,7 +102,25 @@ fn main() {
 
 ## Getting Started
 
-Since this is currently a workspace project, you can clone the repository and run the examples directly using Cargo:
+You can use Kon Engine either as a dependency in your projects or by building it from the source.
+
+### 1. Installation
+
+Add Kon Engine to your project:
+
+```bash
+cargo add kon-engine
+```
+
+Or add it manually to your `Cargo.toml`:
+
+```toml
+[dependencies]
+kon-engine = "0.1.3"
+```
+
+### 2. Cloning from Source
+If you want to contribute, run the examples, or use the latest development version:
 
 ```bash
 # Clone the repository
