@@ -270,13 +270,65 @@ impl World {
         self.alive.len()
     }
 
-    /// Debug print world state as table (Disabled in Release)
+    /// Placeholder for the `dump_all_memory` function in release mode.
+    ///
+    /// In release builds, this function is a no-op that prints a warning,
+    /// preventing heavy I/O operations and code bloat.
+    #[cfg(not(debug_assertions))]
+    pub fn dump_all_memory(&self) {
+        log::warn!("Memory dump is disabled in release mode.");
+    }
+
+    /// Prints the physical memory layout of all registered component storages.
+    ///
+    /// This function displays the memory addresses and byte offsets of stored
+    /// components, allowing verification of memory contiguity and cache efficiency.
+    /// It is designed for low-level performance debugging and memory analysis.
+    ///
+    /// # Note
+    /// This function is **enabled only in debug builds**. Calling it in
+    /// release mode will result in a no-op to avoid the performance overhead
+    /// of console I/O and memory calculations.
+    #[cfg(debug_assertions)]
+    pub fn dump_all_memory(&self) {
+        println!("╔══════════════════════════════════════════════════════════╗");
+        println!("║                   WORLD MEMORY DUMP                      ║");
+        println!("╠══════════════════════════════════════════════════════════╣");
+        println!(
+            "║ Entities: {:<5}          Component Types: {:<5}          ║",
+            self.entity_count(),
+            self.components.len()
+        );
+        println!("╚══════════════════════════════════════════════════════════╝");
+
+        if self.components.is_empty() {
+            println!("(No components registered)");
+        } else {
+            for storage in self.components.values() {
+                storage.dump_memory_layout();
+            }
+        }
+    }
+
+    /// Placeholder for the `inspect` function in release mode.
+    ///
+    /// In release builds, this function is a no-op that prints a warning,
+    /// preventing heavy I/O operations and code bloat.
     #[cfg(not(debug_assertions))]
     pub fn inspect(&self) {
         log::warn!("Inspect is disabled in release mode.");
     }
 
-    /// Debug print world state as table
+    /// Prints a comprehensive, human-readable table of the current World state.
+    ///
+    /// This function scans all alive entities and displays their IDs, generational
+    /// indices, and a formatted view of all attached components.
+    /// It is designed for high-level debugging to verify game logic and entity states.
+    ///
+    /// # Note
+    /// This function is **enabled only in debug builds**. Calling it in
+    /// release mode will result in a no-op to avoid the performance overhead
+    /// of string formatting and console I/O.
     #[cfg(debug_assertions)]
     pub fn inspect(&self) {
         println!("\n╔══════════════════════════════════════════════════════════════════════════╗");

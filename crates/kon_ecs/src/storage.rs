@@ -138,8 +138,15 @@ pub trait Storage: Any + Send + Sync {
     fn remove(&mut self, entity_id: u32) -> bool;
     fn contains(&self, entity_id: u32) -> bool;
     fn entity_ids(&self) -> Vec<u32>;
+
+    #[cfg(debug_assertions)]
     fn type_name(&self) -> &'static str;
+
+    #[cfg(debug_assertions)]
     fn debug_entry(&self, entity_id: u32) -> Option<String>;
+
+    #[cfg(debug_assertions)]
+    fn dump_memory_layout(&self);
 }
 
 impl<T: Component> Storage for SparseSet<T> {
@@ -163,12 +170,47 @@ impl<T: Component> Storage for SparseSet<T> {
         self.entities().to_vec()
     }
 
+    #[cfg(debug_assertions)]
     fn type_name(&self) -> &'static str {
         std::any::type_name::<T>()
     }
 
+    #[cfg(debug_assertions)]
     fn debug_entry(&self, entity_id: u32) -> Option<String> {
         self.get(entity_id).map(|v| format!("{:?}", v))
+    }
+
+    #[cfg(debug_assertions)]
+    fn dump_memory_layout(&self) {
+        let type_name = std::any::type_name::<T>()
+            .split("::")
+            .last()
+            .unwrap_or("Unknown");
+        let size = std::mem::size_of::<T>();
+
+        println!(
+            "\n● STORAGE: {} ({} bytes per element)",
+            type_name.to_uppercase(),
+            size
+        );
+        println!("┌─────────┬───────────┬────────────────────┬───────────────┐");
+        println!("│  Index  │ Entity ID │   Memory Address   │    Offset     │");
+        println!("├─────────┼───────────┼────────────────────┼───────────────┤");
+
+        let mut prev_addr = 0usize;
+
+        for (i, component) in self.dense.iter().enumerate() {
+            let addr = component as *const T as usize;
+            let offset = if i > 0 { addr - prev_addr } else { 0 };
+
+            println!(
+                "│ {:^7} │ {:^9} │ 0x{:012x}     │ {:>10} B  │",
+                i, self.entities[i], addr, offset
+            );
+
+            prev_addr = addr;
+        }
+        println!("└─────────┴───────────┴────────────────────┴───────────────┘");
     }
 }
 
