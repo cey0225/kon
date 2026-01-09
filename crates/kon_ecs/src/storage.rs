@@ -137,7 +137,7 @@ pub trait Storage: Any + Send + Sync {
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn remove(&mut self, entity_id: u32) -> bool;
     fn contains(&self, entity_id: u32) -> bool;
-    fn entity_ids(&self) -> Vec<u32>;
+    fn entity_ids(&self) -> &[u32];
 
     #[cfg(debug_assertions)]
     fn type_name(&self) -> &'static str;
@@ -166,8 +166,8 @@ impl<T: Component> Storage for SparseSet<T> {
         SparseSet::contains(self, entity_id)
     }
 
-    fn entity_ids(&self) -> Vec<u32> {
-        self.entities().to_vec()
+    fn entity_ids(&self) -> &[u32] {
+        self.entities()
     }
 
     #[cfg(debug_assertions)]

@@ -347,12 +347,12 @@ impl<'w, T: QueryTuple<'w>> Query<'w, T> {
         };
 
         let first_type_id = T::first_type_id();
-        let entity_ids: Vec<u32> = match self.world.components().get(&first_type_id) {
+        let entity_ids = match self.world.components().get(&first_type_id) {
             Some(storage) => storage.entity_ids(),
             None => return,
         };
 
-        for id in entity_ids {
+        for &id in entity_ids {
             let entity = Entity::from_raw(id, self.world.generation(id));
 
             if !self.filter.matches(self.world, entity) {
@@ -437,14 +437,14 @@ impl<'w, T: QueryTupleMut<'w>> QueryMut<'w, T> {
         };
 
         let first_type_id = T::first_type_id();
-        let entity_ids: Vec<u32> = unsafe {
+        let entity_ids = unsafe {
             match (*world_ptr).components_mut().get_mut(&first_type_id) {
                 Some(storage) => storage.entity_ids(),
                 None => return,
             }
         };
 
-        for id in entity_ids {
+        for &id in entity_ids {
             let generation = unsafe { (*world_ptr).generation(id) };
             let entity = Entity::from_raw(id, generation);
 
