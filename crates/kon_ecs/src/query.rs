@@ -36,14 +36,21 @@ use std::marker::PhantomData;
 // Query Filter
 // ============================================================================
 
-/// Filter configuration for tag-based filtering
+/// Filter configuration for entity queries
+///
+/// Uses bitmasks for O(1) tag filtering and TypeId lists for component filtering.
 #[derive(Default, Clone)]
 pub struct QueryFilter {
+    /// Bitmask of required tags (entity must have ALL)
     required_mask: u128,
+    /// Bitmask of excluded tags (entity must have NONE)
     excluded_mask: u128,
+    /// Component types entity must have (in addition to queried components)
     required_components: Vec<TypeId>,
+    /// Component types entity must NOT have
     excluded_components: Vec<TypeId>,
-    /// Set to true if a query requires a tag that has never been registered.
+    /// Set to true if query requires a tag that was never registered.
+    /// Optimization: immediately returns no results without checking entities.
     impossible: bool,
 }
 
@@ -52,7 +59,14 @@ impl QueryFilter {
         Self::default()
     }
 
-    /// Check if entity passes bitmask and component filters.
+    /// Checks if an entity passes all filter conditions
+    ///
+    /// Returns false if:
+    /// - Query is impossible (unregistered tag required)
+    /// - Entity missing required tag bits
+    /// - Entity has excluded tag bits
+    /// - Entity missing required components
+    /// - Entity has excluded components
     #[inline(always)]
     pub fn matches(&self, world: &World, entity: Entity) -> bool {
         if self.impossible {
@@ -88,7 +102,10 @@ impl QueryFilter {
 // Fetch Trait - How to fetch a single component
 // ============================================================================
 
-/// Fetch immutable reference
+/// Trait for fetching a single component immutably
+///
+/// Implemented automatically for all `Component` types.
+/// Used internally by the query system.
 pub trait Fetch<'w> {
     type Item;
     type State;
@@ -98,7 +115,10 @@ pub trait Fetch<'w> {
     fn type_id() -> TypeId;
 }
 
-/// Fetch mutable reference
+/// Trait for fetching a single component mutably
+///
+/// Implemented automatically for all `Component` types.
+/// Used internally by the query system.
 pub trait FetchMut<'w> {
     type Item;
     type State;
@@ -153,6 +173,10 @@ impl<'w, T: Component> FetchMut<'w> for T {
 // QueryTuple - Trait for tuple of components (immutable)
 // ============================================================================
 
+/// Trait for fetching tuples of components immutably
+///
+/// Implemented via macro for tuples of 1-12 components.
+/// Allows queries like `select::<(A, B, C)>()`.
 pub trait QueryTuple<'w> {
     type Item;
     type State;
@@ -168,6 +192,10 @@ pub trait QueryTuple<'w> {
 // QueryTupleMut - Trait for tuple of components (mutable)
 // ============================================================================
 
+/// Trait for fetching tuples of components mutably
+///
+/// Implemented via macro for tuples of 1-12 components.
+/// Allows queries like `select::<(A, B, C)>()`.
 pub trait QueryTupleMut<'w> {
     type Item;
     type State;
@@ -183,6 +211,17 @@ pub trait QueryTupleMut<'w> {
 // Macro to implement QueryTuple and QueryTupleMut for tuples 1-12
 // ============================================================================
 
+// Generates QueryTuple and QueryTupleMut implementations for tuples of 1-12 components.
+//
+// This macro implements the traits for:
+// - Single component: (A,)
+// - Two components: (A, B)
+// - Up to twelve: (A, B, C, D, E, F, G, H, I, J, K, L)
+//
+// Each implementation handles:
+// - Fetching storage for each component type
+// - Retrieving component data for a given entity
+// - Type ID collection for duplicate checking
 macro_rules! impl_query_tuple {
     // Match: first component + rest
     ($first:ident $(, $rest:ident)*) => {
@@ -273,6 +312,10 @@ impl_query_tuple!(A, B, C, D, E, F, G, H, I, J);
 impl_query_tuple!(A, B, C, D, E, F, G, H, I, J, K);
 impl_query_tuple!(A, B, C, D, E, F, G, H, I, J, K, L);
 
+/// Panics if duplicate component types are detected in a query
+///
+/// Example: `select::<(Health, Health>()` will panic.
+/// This prevents undefined behavior from aliasing mutable references.
 #[track_caller]
 fn check_duplicate_types(type_ids: &[TypeId]) {
     let unique: HashSet<_> = type_ids.iter().collect();
@@ -334,13 +377,35 @@ impl<'w, T: QueryTuple<'w>> Query<'w, T> {
         self
     }
 
-    /// Filters entities that have this component (without fetching it)
+    /// Filters entities that have this component without fetching it
+    ///
+    /// Useful when you need to check component existence but don't need the data.
+    ///
+    /// # Example
+    /// ```ignore
+    /// // Find all entities with Health that also have Velocity
+    /// world.select::<(Health,)>()
+    ///     .with::<Velocity>()
+    ///     .each(|entity, (health,)| {
+    ///         println!("Fast entity: {}", health.0);
+    ///     });
+    /// ```
     pub fn with<C: Component>(mut self) -> Self {
         self.filter.required_components.push(TypeId::of::<C>());
         self
     }
 
     /// Filters entities that don't have this component
+    ///
+    /// # Example
+    /// ```ignore
+    /// // Find all entities with Health but no Shield
+    /// world.select::<(Health,)>()
+    ///     .without::<Shield>()
+    ///     .each(|entity, (health,)| {
+    ///         println!("Vulnerable: {}", health.0);
+    ///     });
+    /// ```
     pub fn without<C: Component>(mut self) -> Self {
         self.filter.excluded_components.push(TypeId::of::<C>());
         self
@@ -429,13 +494,35 @@ impl<'w, T: QueryTupleMut<'w>> QueryMut<'w, T> {
         self
     }
 
-    /// Filters entities that have this component (without fetching it)
+    /// Filters entities that have this component without fetching it
+    ///
+    /// Useful when you need to check component existence but don't need the data.
+    ///
+    /// # Example
+    /// ```ignore
+    /// // Find all entities with Health that also have Velocity
+    /// world.select::<(Health,)>()
+    ///     .with::<Velocity>()
+    ///     .each(|entity, (health,)| {
+    ///         println!("Fast entity: {}", health.0);
+    ///     });
+    /// ```
     pub fn with<C: Component>(mut self) -> Self {
         self.filter.required_components.push(TypeId::of::<C>());
         self
     }
 
     /// Filters entities that don't have this component
+    ///
+    /// # Example
+    /// ```ignore
+    /// // Find all entities with Health but no Shield
+    /// world.select::<(Health,)>()
+    ///     .without::<Shield>()
+    ///     .each(|entity, (health,)| {
+    ///         println!("Vulnerable: {}", health.0);
+    ///     });
+    /// ```
     pub fn without<C: Component>(mut self) -> Self {
         self.filter.excluded_components.push(TypeId::of::<C>());
         self

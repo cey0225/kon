@@ -1,7 +1,8 @@
-//! Storage Layout Demo - Showcase memory contiguity and SparseSet packing
+//! Storage Layout Demo
 //!
-//! This demo illustrates how components are stored in contiguous memory blocks
-//! and how the engine maintains high density even after entity deletions.
+//! Demonstrates SparseSet memory layout and swap-remove behavior.
+//! Uses `dump_all_memory()` to visualize contiguous memory and cache efficiency.
+//! Only works in debug builds.
 
 use kon::prelude::*;
 
@@ -21,7 +22,6 @@ struct Static;
 fn setup(ctx: &mut Context) {
     println!("=== Storage Layout Demo: Memory Efficiency ===\n");
 
-    // We store IDs in a local list to demonstrate a "game-like" deletion later
     let mut ids = Vec::new();
 
     for i in 0..3 {
@@ -35,22 +35,17 @@ fn setup(ctx: &mut Context) {
             })
             .insert(Health(100.0))
             .insert(Static)
-            .id(); // Getting the real ID, not manual Entity::new
+            .id();
 
         ids.push(id);
     }
 
     println!("[PHASE 1] Initial memory state (Dense & Contiguous):");
     ctx.world().dump_all_memory();
-
-    // Storing the ID we want to delete for the next system
-    // Usually you'd store this in a Resource or a Component,
-    // but for the demo we'll just grab it again in the next system.
 }
 
 #[system]
 fn fragmentation_test(ctx: &mut Context) {
-    // Let's find "Entity_1" properly through a query, like a real game logic
     let mut target = None;
     ctx.world().select::<(Name,)>().each(|entity, (name,)| {
         if name.0 == "Entity_1" {

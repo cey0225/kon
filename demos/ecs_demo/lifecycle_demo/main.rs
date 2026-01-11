@@ -1,4 +1,7 @@
-//! Lifecycle Demo - Demonstrates entity spawn and destroy
+//! Lifecycle Demo
+//!
+//! Demonstrates entity spawning, destruction, and deferred operations.
+//! Shows how entities can have lifetimes and be destroyed automatically.
 
 use kon::prelude::*;
 
@@ -12,14 +15,12 @@ struct Lifetime(u32);
 fn setup(ctx: &mut Context) {
     println!("=== Lifecycle Demo ===\n");
 
-    // Permanent entity
     ctx.world_mut()
         .spawn()
         .insert(Health(100))
         .tag("permanent")
         .id();
 
-    // Temporary entities with different lifetimes
     for i in 1..=3 {
         ctx.world_mut()
             .spawn()
@@ -39,7 +40,6 @@ fn tick_lifetime(ctx: &mut Context) {
     let frame = ctx.time.frame_count() as u32;
     println!("[FRAME {}] Checking lifetimes...", frame);
 
-    // Collect entities to destroy
     let mut to_destroy = Vec::new();
 
     ctx.world()
@@ -53,7 +53,6 @@ fn tick_lifetime(ctx: &mut Context) {
             }
         });
 
-    // Destroy expired entities
     for entity in to_destroy {
         ctx.world_mut().destroy(entity);
         println!("  {:?} destroyed!", entity);

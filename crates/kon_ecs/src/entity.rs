@@ -1,13 +1,27 @@
-//! Entity identifier with generation for safe references.
+//! Entity identifier with generational indices for safe references
+//!
+//! Entities are lightweight IDs that reference component data in the World.
+//! The generation counter prevents use-after-free bugs when entities are destroyed and IDs are reused.
 
 use std::fmt::Debug;
 use crate::Component;
 
-/// Unique entity identifier
+/// Unique entity identifier with generation tracking
+///
+/// Each entity has:
+/// - `id`: Numeric identifier (can be reused after destruction)
+/// - `generation`: Counter that increases when ID is reused
+///
+/// This prevents stale references: if you hold an old Entity handle,
+/// operations will fail safely because the generation won't match.
 ///
 /// # Example
 /// ```ignore
-/// let entity = world.spawn().insert(Position { x: 0.0, y: 0.0 }).id();
+/// let entity = world.spawn()
+///     .insert(Position { x: 0.0, y: 0.0 })
+///     .id();
+///
+/// println!("{}", entity); // "Entity(0v0)"
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Entity {
@@ -20,7 +34,9 @@ impl Entity {
         Self { id, generation }
     }
 
-    /// Create entity from raw parts (for query system)
+    /// Creates an entity from raw parts (internal use only)
+    ///
+    /// Used by the query system to reconstruct Entity handles from stored IDs.
     pub(crate) fn from_raw(id: u32, generation: u32) -> Self {
         Self { id, generation }
     }
@@ -44,7 +60,19 @@ impl std::fmt::Display for Entity {
     }
 }
 
-/// Builder for creating entities
+/// Fluent builder for constructing entities with components and tags
+///
+/// Obtained via `world.spawn()`. Allows method chaining.
+///
+/// # Example
+/// ```ignore
+/// let player = world.spawn()
+///     .insert(Health(100))
+///     .insert(Position { x: 0.0, y: 0.0 })
+///     .tag("player")
+///     .tag("friendly")
+///     .id();
+/// ```
 pub struct EntityBuilder<'w> {
     world: &'w mut crate::World,
     entity: Entity,
@@ -55,19 +83,24 @@ impl<'w> EntityBuilder<'w> {
         Self { world, entity }
     }
 
-    /// Inserts a component
+    /// Attaches a component to the entity
+    ///
+    /// Components can be any type implementing `Component` (Debug + Send + Sync + 'static)
     pub fn insert<C: Component>(self, component: C) -> Self {
         self.world.insert(self.entity, component);
         self
     }
 
-    /// Adds a tag
+    /// Attaches a tag to the entity
+    ///
+    /// Tags are lightweight string labels for filtering queries.
+    /// Uses a bitmask system internally for O(1) filtering.
     pub fn tag(self, tag: &str) -> Self {
         self.world.tag(self.entity, tag);
         self
     }
 
-    /// Finishes building and returns the entity
+    /// Completes the builder and returns the entity handle
     pub fn id(self) -> Entity {
         self.entity
     }

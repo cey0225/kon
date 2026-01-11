@@ -1,4 +1,7 @@
-//! Tag Demo - Demonstrates tag-based filtering
+//! Tag Demo
+//!
+//! Demonstrates the tag system for lightweight entity categorization.
+//! Shows `.tagged()` and `.not_tagged()` filtering with O(1) bitmask checks.
 
 use kon::prelude::*;
 
@@ -12,7 +15,6 @@ struct Damage(i32);
 fn setup(ctx: &mut Context) {
     println!("=== Tag Demo ===\n");
 
-    // Player
     ctx.world_mut()
         .spawn()
         .insert(Health(100))
@@ -21,7 +23,6 @@ fn setup(ctx: &mut Context) {
         .tag("friendly")
         .id();
 
-    // Friendly NPC
     ctx.world_mut()
         .spawn()
         .insert(Health(50))
@@ -29,7 +30,6 @@ fn setup(ctx: &mut Context) {
         .tag("friendly")
         .id();
 
-    // Enemy
     ctx.world_mut()
         .spawn()
         .insert(Health(30))
@@ -37,7 +37,6 @@ fn setup(ctx: &mut Context) {
         .tag("enemy")
         .id();
 
-    // Frozen enemy (can't act)
     ctx.world_mut()
         .spawn()
         .insert(Health(80))

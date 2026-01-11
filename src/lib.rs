@@ -1,6 +1,6 @@
 //! # Kon Engine
 //!
-//! Modular, plugin-based 2D game engine.
+//! A modular 2D game engine for Rust, built with a focus on ECS performance and simplicity.
 //!
 //! # Example
 //! ```ignore
@@ -18,12 +18,18 @@
 //!         .id();
 //! }
 //!
-//! fn main() {
-//!     kon::init_logger();
+//! #[system]
+//! fn update(ctx: &mut Context) {
+//!     if ctx.time.frame_count() == 60 {
+//!         ctx.quit();
+//!     }
+//! }
 //!
+//! fn main() {
 //!     Kon::new()
 //!         .add_plugin(DefaultPlugins)
 //!         .add_startup_system(setup)
+//!         .add_system(update)
 //!         .run();
 //! }
 //! ```

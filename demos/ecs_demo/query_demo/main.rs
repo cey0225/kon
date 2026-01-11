@@ -1,4 +1,7 @@
-//! Query Demo - Showcase tuple-based queries with with/without filters
+//! Query Demo
+//!
+//! Demonstrates advanced query filtering with `.with()` and `.without()`.
+//! Shows how to filter entities by component presence without fetching them.
 
 use kon::prelude::*;
 
@@ -20,7 +23,6 @@ struct Health(f32);
 #[component]
 struct Name(String);
 
-/// Marker component for damage reduction
 #[component]
 struct Armor;
 
@@ -28,7 +30,6 @@ struct Armor;
 fn setup(ctx: &mut Context) {
     println!("=== Query Demo: Advanced Filtering ===\n");
 
-    // Armored player
     ctx.world_mut()
         .spawn()
         .insert(Name("Player".into()))
@@ -38,7 +39,6 @@ fn setup(ctx: &mut Context) {
         .insert(Armor)
         .id();
 
-    // Standard enemy
     ctx.world_mut()
         .spawn()
         .insert(Name("Enemy".into()))
@@ -47,7 +47,6 @@ fn setup(ctx: &mut Context) {
         .insert(Health(100.0))
         .id();
 
-    // Static object
     ctx.world_mut()
         .spawn()
         .insert(Name("Rock".into()))
@@ -76,7 +75,6 @@ fn movement_system(ctx: &mut Context) {
 fn combat_system(ctx: &mut Context) {
     println!("[Combat] Applying environmental damage:");
 
-    // Apply full damage to non-armored entities
     ctx.world_mut()
         .select_mut::<(Health,)>()
         .without::<Armor>()
@@ -85,7 +83,6 @@ fn combat_system(ctx: &mut Context) {
             println!("  {:?} (No Armor) took 20 damage. HP: {:.1}", entity, hp.0);
         });
 
-    // Apply reduced damage to armored entities
     ctx.world_mut()
         .select_mut::<(Health,)>()
         .with::<Armor>()

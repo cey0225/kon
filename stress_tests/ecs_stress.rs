@@ -1,7 +1,9 @@
-//! ECS Stress Test - Pure profiling binary for Flamegraph analysis
+//! ECS Stress Test
 //!
-//! This binary performs heavy ECS operations without any benchmarking overhead
-//! to provide clean profiling data for memory access and iteration patterns.
+//! The purpose of this file is a pure performance test.
+//! This test operates by default with 100,000 entities and 4 systems.
+//! It verifies the iteration speed of SparseSet and the zero-allocation query logic.
+//! The test must be run in release mode otherwise the results may be misleading.
 
 use kon::prelude::*;
 

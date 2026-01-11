@@ -1,4 +1,10 @@
-//! ECS World - entity and component management.
+//! ECS World - entity and component management
+//!
+//! The world is the core ECS container that stores:
+//! - Entities with generational indices
+//! - Component storage (SparseSet per type)
+//! - Tag system (128 bitmask-based labels per entity)
+//! - Deferred operations queue
 
 use crate::Component;
 use crate::entity::{Entity, EntityBuilder};
@@ -7,20 +13,37 @@ use crate::storage::{SparseSet, Storage};
 use std::any::TypeId;
 use std::collections::{HashMap, HashSet};
 
+/// Boxed closure for deferred World operations
+///
+/// Used to queue operations that modify the World during queries.
+/// Applied via `world.apply_deferred()` at safe points.
 type DeferredOp = Box<dyn FnOnce(&mut World) + Send + Sync>;
 
-/// ECS World
+/// ECS World containing all entities, components and tags
+///
+/// # Tag System
+/// Tags are lightweight string labels stored as bitmasks (u128).
+/// - Up to 128 unique tags globally
+/// - O(1) tag filtering in queries
+/// - Tags are not components (no storage overhead per entity)
+///
+/// # Deferred Operations
+/// Use `world.defer()` to queue operations that modify the World during iteration.
+/// Applied via `apply_deferred()` at frame end.
 ///
 /// # Example
 /// ```ignore
-/// // Create entity with components
+/// let mut world = World::new();
+///
+/// // Create entity with components and tags
 /// let player = world.spawn()
 ///     .insert(Position { x: 0.0, y: 0.0 })
 ///     .insert(Velocity { x: 1.0, y: 0.0 })
 ///     .tag("player")
+///     .tag("friendly")
 ///     .id();
 ///
-/// // Query with tuple syntax
+/// // Immutable query
 /// world.select::<(Position, Velocity)>()
 ///     .tagged("player")
 ///     .each(|entity, (pos, vel)| {
@@ -32,6 +55,7 @@ type DeferredOp = Box<dyn FnOnce(&mut World) + Send + Sync>;
 ///     .not_tagged("frozen")
 ///     .each(|entity, (pos, vel)| {
 ///         pos.x += vel.x;
+///         pos.y += vel.y;
 ///     });
 /// ```
 pub struct World {
@@ -76,6 +100,9 @@ impl World {
     }
 
     /// Starts building a new entity
+    ///
+    /// Returns an EntityBuilder for fluent API chaining.
+    /// Entity IDs are reused from a free list after destruction.
     pub fn spawn(&mut self) -> EntityBuilder<'_> {
         let id = self.free_ids.pop().unwrap_or_else(|| {
             let id = self.next_id;
@@ -94,23 +121,27 @@ impl World {
         EntityBuilder::new(self, entity)
     }
 
-    /// Checks if entity is alive
+    /// Checks if an entity is alive and matches the given generation
+    ///
+    /// Returns false if:
+    /// - Entity ID not in alive set
+    /// - Generation mismatch (entity was destroyed and ID reused)
     pub fn is_alive(&self, entity: Entity) -> bool {
         self.alive.contains(&entity.id())
             && self.generations.get(entity.id() as usize) == Some(&entity.generation())
     }
 
-    /// Gets components map (internal use)
+    /// Returns internal component storage map (used by query system)
     pub(crate) fn components(&self) -> &HashMap<TypeId, Box<dyn Storage>> {
         &self.components
     }
 
-    /// Gets mutable components map (internal use)
+    /// Returns mutable internal component storage map (used by query system)
     pub(crate) fn components_mut(&mut self) -> &mut HashMap<TypeId, Box<dyn Storage>> {
         &mut self.components
     }
 
-    /// Checks if entity has a component by TypeId (internal use)
+    /// Checks if entity has a component by TypeId (used by query filters)
     pub(crate) fn has_by_type_id(&self, entity: Entity, type_id: &TypeId) -> bool {
         if !self.is_alive(entity) {
             return false;
@@ -121,12 +152,17 @@ impl World {
             .is_some_and(|s| s.contains(entity.id()))
     }
 
-    /// Gets the generation for an entity id
+    /// Returns the current generation for an entity ID (used by query system)
     pub(crate) fn generation(&self, id: u32) -> u32 {
         self.generations.get(id as usize).copied().unwrap_or(0)
     }
 
-    /// Destroys an entity and all its components
+    /// Destroys an entity and removes all its components and tags
+    ///
+    /// The entity ID is added to a free list for reuse.
+    /// The generation counter is increased to invalidate old references.
+    ///
+    /// Returns true if the entity was alive, false otherwise.
     pub fn destroy(&mut self, entity: Entity) -> bool {
         if !self.is_alive(entity) {
             return false;
@@ -149,7 +185,10 @@ impl World {
         true
     }
 
-    /// Inserts a component to an entity
+    /// Inserts a component into an entity
+    ///
+    /// If the entity already has this component type, it will be replaced.
+    /// Does nothing if the entity is not alive.
     pub fn insert<C: Component>(&mut self, entity: Entity, component: C) {
         if !self.is_alive(entity) {
             return;
@@ -166,6 +205,8 @@ impl World {
     }
 
     /// Removes a component from an entity
+    ///
+    /// Returns true if the component was removed, false if not found.
     pub fn remove<C: Component>(&mut self, entity: Entity) -> bool {
         if !self.is_alive(entity) {
             return false;
@@ -177,7 +218,11 @@ impl World {
             .is_some_and(|s| s.remove(entity.id()).is_some())
     }
 
-    /// Gets a component reference
+    /// Gets an immutable reference to a component
+    ///
+    /// Returns None if:
+    /// - Entity is not alive
+    /// - Entity doesn't have this component type
     pub fn get<C: Component>(&self, entity: Entity) -> Option<&C> {
         if !self.is_alive(entity) {
             return None;
@@ -189,7 +234,11 @@ impl World {
             .and_then(|s| s.get(entity.id()))
     }
 
-    /// Gets a mutable component reference
+    /// Gets a mutable reference to a component
+    ///
+    /// Returns None if:
+    /// - Entity is not alive
+    /// - Entity doesn't have this component type
     pub fn get_mut<C: Component>(&mut self, entity: Entity) -> Option<&mut C> {
         if !self.is_alive(entity) {
             return None;
@@ -201,7 +250,7 @@ impl World {
             .and_then(|s| s.get_mut(entity.id()))
     }
 
-    /// Checks if entity has a component
+    /// Checks if an entity has a component of the given type
     pub fn has<C: Component>(&self, entity: Entity) -> bool {
         if !self.is_alive(entity) {
             return false;
@@ -212,8 +261,12 @@ impl World {
             .is_some_and(|s| s.contains(entity.id()))
     }
 
-    /// Internal helper to map a tag name to a bit index (0-127).
-    /// If the tag doesn't exist, it registers a new index.
+    /// Maps a tag name to its bit index (0-127) in the bitmask
+    ///
+    /// Creates a new index if the tag hasn't been registered yet.
+    ///
+    /// # Panics
+    /// Panics if more than 128 unique tags are registered globally.
     #[track_caller]
     fn get_or_create_tag_id(&mut self, tag: &str) -> usize {
         if let Some(&id) = self.tag_registry.get(tag) {
@@ -227,14 +280,14 @@ impl World {
         }
     }
 
-    /// Returns the bit index of a tag if it exists in the registry.
+    /// Returns the bit index of a tag if it exists (used by query system)
     pub(crate) fn get_tag_id(&self, tag: &str) -> Option<usize> {
         self.tag_registry.get(tag).copied()
     }
 
-    /// Returns true if the entity has the specified tag.
+    /// Checks if an entity has a specific tag
     ///
-    /// This operation is O(1) after the initial tag name lookup.
+    /// This is O(1) after the tag name lookup.
     #[inline(always)]
     pub fn has_tag(&self, entity: Entity, tag: &str) -> bool {
         if let Some(&tag_id) = self.tag_registry.get(tag) {
@@ -245,7 +298,10 @@ impl World {
         }
     }
 
-    /// Attaches a tag to an entity using a high-performance bitmask system.
+    /// Attaches a tag to an entity
+    ///
+    /// Tags are stored as bitmasks for fast filtering in queries.
+    /// Does nothing if the entity is not alive.
     ///
     /// # Panics
     /// Panics if more than 128 unique tags are created globally.
@@ -265,7 +321,7 @@ impl World {
         self.entity_tags[id] |= 1 << tag_id;
     }
 
-    /// Removes a tag from an entity by clearing its corresponding bit.
+    /// Removes a tag from an entity by clearing its bit in the bitmask
     pub fn untag(&mut self, entity: Entity, tag: &str) {
         if let Some(&tag_id) = self.tag_registry.get(tag) {
             let id = entity.id() as usize;
@@ -275,8 +331,9 @@ impl World {
         }
     }
 
-    /// Returns a list of tag names associated with an entity.
-    /// Primarily used for inspection and debugging.
+    /// Returns all tag names associated with an entity
+    ///
+    /// Primarily used for debugging and inspection.
     pub fn get_entity_tags(&self, entity_id: u32) -> Vec<String> {
         let mut names = Vec::new();
 
@@ -291,9 +348,9 @@ impl World {
         names
     }
 
-    /// Returns a bitmask representing all tags assigned to an entity.
+    /// Returns the bitmask of all tags for an entity (used by query system)
     ///
-    /// This is used internally by the query system for O(1) tag filtering.
+    /// Each bit represents one tag. Used for O(1) tag filtering.
     #[inline(always)]
     pub(crate) fn get_tag_mask(&self, entity_id: u32) -> u128 {
         self.entity_tags
@@ -332,12 +389,28 @@ impl World {
         QueryMut::new(self)
     }
 
-    /// Defers an operation to be executed later
+    /// Queues an operation to be executed later via `apply_deferred()`
+    ///
+    /// Useful for spawning/destroying entities during query iteration.
+    ///
+    /// # Example
+    /// ```ignore
+    /// world.select::<(Health,)>().each(|entity, (health,)| {
+    ///     if health.0 <= 0 {
+    ///         world.defer(move |w| {
+    ///             w.destroy(entity);
+    ///         });
+    ///     }
+    /// });
+    /// world.apply_deferred();
+    /// ```
     pub fn defer<F: FnOnce(&mut World) + Send + Sync + 'static>(&mut self, f: F) {
         self.deferred.push(Box::new(f));
     }
 
-    /// Applies all deferred operations
+    /// Executes all queued deferred operations
+    ///
+    /// Called automatically each frame by `apply_deferred_system`.
     pub fn apply_deferred(&mut self) {
         let deferred = std::mem::take(&mut self.deferred);
         for f in deferred {
@@ -345,30 +418,26 @@ impl World {
         }
     }
 
-    /// Returns entity count
+    /// Returns the number of alive entities
     pub fn entity_count(&self) -> usize {
         self.alive.len()
     }
 
-    /// Placeholder for the `dump_all_memory` function in release mode.
+    /// No-op in release builds (prints warning)
     ///
-    /// In release builds, this function is a no-op that prints a warning,
-    /// preventing heavy I/O operations and code bloat.
+    /// Use debug builds to access memory dump functionality.
     #[cfg(not(debug_assertions))]
     pub fn dump_all_memory(&self) {
         log::warn!("Memory dump is disabled in release mode.");
     }
 
-    /// Prints the physical memory layout of all registered component storages.
+    /// Prints physical memory layout of all component storages (debug only)
     ///
-    /// This function displays the memory addresses and byte offsets of stored
-    /// components, allowing verification of memory contiguity and cache efficiency.
-    /// It is designed for low-level performance debugging and memory analysis.
+    /// Shows memory addresses and byte offsets to verify:
+    /// - Components are stored contiguously
+    /// - Cache-friendly memory access patterns
     ///
-    /// # Note
-    /// This function is **enabled only in debug builds**. Calling it in
-    /// release mode will result in a no-op to avoid the performance overhead
-    /// of console I/O and memory calculations.
+    /// Only enabled in debug builds to avoid I/O overhead.
     #[cfg(debug_assertions)]
     pub fn dump_all_memory(&self) {
         println!("╔══════════════════════════════════════════════════════════╗");
@@ -390,25 +459,23 @@ impl World {
         }
     }
 
-    /// Placeholder for the `inspect` function in release mode.
+    /// No-op in release builds (prints warning)
     ///
-    /// In release builds, this function is a no-op that prints a warning,
-    /// preventing heavy I/O operations and code bloat.
+    /// Use debug builds to access inspection functionality.
     #[cfg(not(debug_assertions))]
     pub fn inspect(&self) {
         log::warn!("Inspect is disabled in release mode.");
     }
 
-    /// Prints a comprehensive, human-readable table of the current World state.
+    /// Prints a formatted table of all entities and their components (debug only)
     ///
-    /// This function scans all alive entities and displays their IDs, generational
-    /// indices, and a formatted view of all attached components.
-    /// It is designed for high-level debugging to verify game logic and entity states.
+    /// Shows:
+    /// - Entity IDs and generations
+    /// - Attached tags
+    /// - Component values
     ///
-    /// # Note
-    /// This function is **enabled only in debug builds**. Calling it in
-    /// release mode will result in a no-op to avoid the performance overhead
-    /// of string formatting and console I/O.
+    /// Useful for debugging game state and verifying entity configurations.
+    /// Only enabled in debug builds to avoid string formatting overhead.
     #[cfg(debug_assertions)]
     pub fn inspect(&self) {
         println!("\n╔══════════════════════════════════════════════════════════════════════════╗");

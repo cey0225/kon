@@ -4,13 +4,12 @@
 
 ## Features
 
-- **#[component]**: Marks structs as components for _[kon_ecs](https://crates.io/crates/kon_ecs)_.
-- **System Support**: Provides internal helpers to integrate logic into the _[kon-engine](https://crates.io/crates/kon-engine)_ core.
+- **#[component]**: Auto-derives Debug, Clone, PartialEq for component structs.
+- **#[system]**: Validates system function signatures at compile time.
 
 ## Usage
 
 This crate is primarily designed to work alongside **kon_ecs**. While it can be installed independently, it is best used as part of the full engine suite.
-
 ```bash
 # Recommended: Install the full engine
 cargo add kon-engine

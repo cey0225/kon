@@ -40,6 +40,12 @@ impl Time {
         }
     }
 
+    /// Updates frame timing (called automatically by App each frame)
+    ///
+    /// Calculates:
+    /// - Delta time since last frame
+    /// - Total elapsed time since startup
+    /// - Increases the frame counter
     pub(crate) fn update(&mut self) {
         let now = Instant::now();
         self.delta = now - self.last_frame;

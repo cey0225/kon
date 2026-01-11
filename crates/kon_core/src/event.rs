@@ -1,7 +1,10 @@
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 
-/// Event trait - all events implement this automatically
+/// Marker trait for event types
+///
+/// Automatically implemented for all types that are `Any + Send + Sync + 'static`.
+/// No manual implementation needed.
 pub trait Event: Any + Send + Sync + 'static {}
 impl<T: Any + Send + Sync + 'static> Event for T {}
 
@@ -51,7 +54,10 @@ impl Events {
             .unwrap_or_else(|| [].iter())
     }
 
-    /// Reads and clears all events of a specific type
+    /// Reads and consumes all events of a specific type
+    ///
+    /// Unlike `read()`, this removes events from the queue.
+    /// Useful when you want to process events only once.
     pub fn consume<E: Event>(&mut self) -> impl Iterator<Item = E> {
         let type_id = TypeId::of::<E>();
         self.queues

@@ -1,6 +1,6 @@
 # kon_core
 
-**kon_core** provides the fundamental types and internal utilities for the Kon Engine.
+**kon_core** is the foundation of Kon Engine - it handles the app lifecycle, plugin system, and core types.
 
 ## Scope
 

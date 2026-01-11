@@ -1,6 +1,6 @@
 [package]
 name = "kon-engine"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2024"
 authors = ["Ceyhun <ceyhun.yildizz0@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -19,9 +19,9 @@ name = "kon"
 path = "src/lib.rs"
 
 [dependencies]
-kon_core = "0.1.3"
-kon_ecs = "0.1.3"
-kon_macros = "0.1.3"
+kon_core = "0.1.4"
+kon_ecs = "0.1.4"
+kon_macros = "0.1.4"
 log = "0.4.29"
 
 [workspace]
@@ -33,7 +33,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.3"
+version = "0.1.4"
 edition = "2024"
 authors = ["Ceyhun <ceyhun.yildizz0@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -55,14 +55,14 @@ syn = { version = "2.0.112", features = ["full"] }
 proc-macro2 = "1.0.104"
 
 # --- Modules ---
-kon_core = "0.1.3"
+kon_core = "0.1.4"
 kon_math = { path = "crates/kon_math" }
-kon_ecs = "0.1.3"
+kon_ecs = "0.1.4"
 kon_window = { path = "crates/kon_window" }
 kon_renderer = { path = "crates/kon_renderer" }
 kon_input = { path = "crates/kon_input" }
 kon_physics = { path = "crates/kon_physics" }
-kon_macros = "0.1.3"
+kon_macros = "0.1.4"
 
 [profile.release]
 debug = true

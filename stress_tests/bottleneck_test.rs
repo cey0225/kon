@@ -1,3 +1,10 @@
+//! Bottleneck Test
+//!
+//! The purpose of this file is a memory bandwidth test.
+//! It measures the cache miss rate caused by components that carry large amounts of data.
+//! This file is not intended to be operated independently; it is designed to be used in conjunction with a profiler.
+//! The FPS may be low here because the purpose is to visualize the bottleneck.
+
 use kon::prelude::*;
 
 #[component]

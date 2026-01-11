@@ -1,75 +1,74 @@
 # Kon Engine 🦀
 
-**Kon** is a modular, plugin-based 2D game engine written in Rust. It is built from scratch with a focus on simplicity and a custom SparseSet-based ECS architecture.
+A modular 2D game engine in Rust with a custom SparseSet-based ECS. Built from scratch to learn how game engines actually work.
 
-> ⚠️ **Note:** This project is currently in the **experimental** stage and is being developed for educational purposes.
+> ⚠️ **Heads up:** This is an experimental/educational project. I'm building this to understand engine internals, not to compete with existing engines.
 
-**Goal:** To understand how game engines work under the hood, rather than just using them.
+## What's Inside
 
-## Architecture
+The project is split into workspace crates:
 
-The engine is organized as a workspace with independent modules:
+**Currently Working:**
+- **`kon_core`** - App lifecycle, plugins, events
+- **`kon_ecs`** - Custom ECS
+- **`kon_macros`** - Proc macros for `#[system]` and `#[component]`
 
-### Core (Implemented)
-- **`kon_core`**: Application lifecycle, plugin system, and event handling.
-- **`kon_ecs`**: Custom Entity-Component-System using generational indices.
-- **`kon_macros`**: Procedural macros (`#[system]`, `#[component]`).
-
-### Under Construction 🚧
-- **`kon_math`**: Math utilities and data structures (Glam integration) **(WIP)**.
-- **`kon_window`**: Window management via Winit **(WIP)**.
-- **`kon_input`**: Input state management **(WIP)**.
-- **`kon_renderer`**: WGPU-based rendering engine **(WIP)**.
-- **`kon_physics`**: 2D Physics engine integration **(Planned)**.
-- **`kon_editor`**: Editor UI and tooling **(Planned)**.
+**Still Cooking 🚧:**
+- **`kon_math`** - Math stuff with Glam integration (WIP)
+- **`kon_window`** - Winit-based window management (WIP)
+- **`kon_input`** - Input handling (WIP)
+- **`kon_renderer`** - WGPU renderer (WIP)
+- **`kon_physics`** - 2D physics (Planned)
+- **`kon_editor`** - Editor tools (Planned)
 
 ## Features
 
-- [x] **Modular Architecture:** Plugin-based design.
-- [x] **High-Performance ECS:** Custom SparseSet storage with O(1) bitmask tagging and zero-allocation queries.
-- [x] **Ergonomic API:** Write systems as normal Rust functions.
-- [x] **Tuple-based Queries:** Type-safe iteration (e.g., `Query<(Pos, Vel)>`).
-- [x] **Event Signals:** Decoupled communication between systems.
-- [ ] **Windowing:** Context-aware window creation.
-- [ ] **Input Handling:** State management for keyboard/mouse.
-- [ ] **Rendering:** Hardware accelerated 2D graphics.
-- [ ] **Physics:** Collision detection and rigid body dynamics.
-- [ ] **Editor:** Integrated development tools.
+- [x] Plugin-based architecture
+- [x] Custom SparseSet ECS with O(1) component access
+- [x] Write systems as regular Rust functions
+- [x] Type-safe queries like `Query<(Pos, Vel)>`
+- [x] Event system for decoupled communication
+- [ ] Window context management
+- [ ] Keyboard/mouse input
+- [ ] Hardware-accelerated 2D rendering
+- [ ] Collision detection and physics
+- [ ] Integrated editor
 
 ## Performance Analysis
 
-Kon Engine is architected for maximum throughput. Below are the flamegraphs demonstrating the engine's performance under extreme conditions.
+Below are flamegraphs from stress tests showing where the engine spends its time under heavy load.
 
 ### ECS Stress Test (100k Entities)
-This test simulates 100,000 entities being updated by multiple systems. The minimal overhead in `each` calls demonstrates the efficiency of the zero-allocation query system.
+This test runs 100,000 entities through multiple systems each frame. Most CPU time is spent in actual component logic rather than query overhead, which shows the zero-allocation iteration is working as intended.
 
 ![ECS Stress Test](assets/ecs_stress_flamegraph.svg)
-*[Click to view interactive version](./assets/ecs_stress_flamegraph.svg)*
+
+[View interactive flamegraph](https://raw.githubusercontent.com/cey0225/kon/refs/heads/main/assets/ecs_stress_flamegraph.svg)
 
 ### Heavy Component Bottleneck Test
-This test uses 10,000 entities with "Heavy" components (100x f32 each). The results show that the engine is memory-bound rather than logic-bound, proving the efficiency of SparseSet storage hoisting.
+This test uses 10,000 entities with large components (100 floats each). The results are memory-bound rather than logic-bound, which means SparseSet is doing its job keeping data contiguous.
 
 ![Bottleneck Test](assets/bottleneck_test_flamegraph.svg)
-*[Click to view interactive version](./assets/bottleneck_test_flamegraph.svg)*
 
-## Usage Example
+[View interactive flamegraph](https://raw.githubusercontent.com/cey0225/kon/refs/heads/main/assets/bottleneck_test_flamegraph.svg)
 
-Kon uses a clean, ergonomic API inspired by modern ECS patterns. Here is a simple example:
+## Quick Example
+
+Here's how you write a simple simulation:
 
 ```rust
 use kon::prelude::*;
 
-// 1. Define Components
+// Define your data
 #[component]
 struct Position { x: f32, y: f32 }
 
 #[component]
 struct Velocity { x: f32, y: f32 }
 
-// 2. Define Systems
+// Setup runs once
 #[system]
 fn setup(ctx: &mut Context) {
-    // Spawn an entity
     ctx.world_mut()
         .spawn()
         .insert(Position { x: 0.0, y: 0.0 })
@@ -78,9 +77,9 @@ fn setup(ctx: &mut Context) {
         .id();
 }
 
+// Movement runs every frame
 #[system]
 fn movement(ctx: &mut Context) {
-    // Query and iterate efficiently
     ctx.world_mut()
         .select_mut::<(Position, Velocity)>()
         .each(|entity, (pos, vel)| {
@@ -90,55 +89,54 @@ fn movement(ctx: &mut Context) {
         });
 }
 
-// 3. Run the App
+// Update runs every frame
+#[system]
+fn update(ctx: &mut Context) {
+    if ctx.time.frame_count() == 60 {
+        ctx.quit();
+    }
+}
+
+// Wire everything together
 fn main() {
     Kon::new()
         .add_plugin(DefaultPlugins)
         .add_startup_system(setup)
         .add_system(movement)
+        .add_system(update)
         .run();
 }
 ```
 
-## Getting Started
+## How to Use
 
-You can use Kon Engine either as a dependency in your projects or by building it from the source.
-
-### 1. Installation
-
-Add Kon Engine to your project:
+**As a dependency:**
 
 ```bash
 cargo add kon-engine
 ```
 
-Or add it manually to your `Cargo.toml`:
+Or in your `Cargo.toml`:
 
 ```toml
 [dependencies]
-kon-engine = "0.1.3"
+kon-engine = "0.1.4"
 ```
 
-### 2. Cloning from Source
-If you want to contribute, run the examples, or use the latest development version:
+**From source:**
 
 ```bash
-# Clone the repository
 git clone https://github.com/cey0225/kon.git
 cd kon
 
-# Run the query demo
+# Run examples
 ./kon.sh ecs_demo/query_demo
-
-# Run the tag filtering demo
 ./kon.sh ecs_demo/tag_demo
 ```
 
 ## License
 
-This project is dual-licensed under either:
+Dual-licensed under MIT or Apache 2.0, pick whichever works for you.
 
-- MIT License ([LICENSE-MIT](LICENSE-MIT) or [http://opensource.org/licenses/MIT](http://opensource.org/licenses/MIT))
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0))
-
-at your option.
+- MIT: [LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT
+- Apache 2.0: [LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0

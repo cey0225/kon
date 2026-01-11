@@ -1,15 +1,29 @@
-//! Component storage using SparseSet.
+//! Component storage using SparseSet data structure
+//!
+//! SparseSet provides O(1) insert, remove, and lookup with dense memory layout
+//! for cache-efficient iteration.
 
 use std::any::Any;
 use crate::Component;
 
 /// Fast component storage with O(1) operations
+///
+/// Uses a SparseSet data structure
+/// - `sparse`: Maps entity ID -> dense array index
+/// - `dense`: Contiguous component data
+/// - `entities`: Entity IDs in dense array order
+///
+/// Benefits:
+/// - O(1) insert, remove, get
+/// - Cache-friendly iteration (dense array)
+/// - Stable pointers within a frame
 pub struct SparseSet<T> {
     sparse: Vec<usize>,
     dense: Vec<T>,
     entities: Vec<u32>,
 }
 
+/// Sentinel value indicating "no entry" in sparse array
 const NONE: usize = usize::MAX;
 
 impl<T> SparseSet<T> {
@@ -21,6 +35,9 @@ impl<T> SparseSet<T> {
         }
     }
 
+    /// Inserts or updates a component for an entity
+    ///
+    /// If the entity already has this component, it will be replaced.
     pub fn insert(&mut self, entity_id: u32, value: T) {
         let id = entity_id as usize;
 
@@ -69,6 +86,10 @@ impl<T> SparseSet<T> {
         Some(&mut self.dense[dense_idx])
     }
 
+    /// Removes a component and returns it
+    ///
+    /// Uses swap-remove for O(1) deletion. The last element is moved
+    /// to fill the gap, so iteration order is not preserved.
     pub fn remove(&mut self, entity_id: u32) -> Option<T> {
         let id = entity_id as usize;
         if id >= self.sparse.len() {
@@ -106,14 +127,19 @@ impl<T> SparseSet<T> {
         dense_idx != NONE
     }
 
+    /// Iterates over all (entity_id, component) pairs
     pub fn iter(&self) -> impl Iterator<Item = (u32, &T)> {
         self.entities.iter().copied().zip(self.dense.iter())
     }
 
+    /// Iterates over all (entity_id, component) pairs mutably
     pub fn iter_mut(&mut self) -> impl Iterator<Item = (u32, &mut T)> {
         self.entities.iter().copied().zip(self.dense.iter_mut())
     }
 
+    /// Returns a slice of all entity IDs in this storage
+    ///
+    /// Order matches the dense component array.
     pub fn entities(&self) -> &[u32] {
         &self.entities
     }
@@ -133,7 +159,10 @@ impl<T> Default for SparseSet<T> {
     }
 }
 
-/// Type-erased storage trait
+/// Type-erased trait for generic storage access
+///
+/// Allows World to store different component types in a HashMap
+/// without knowing their concrete types at compile time.
 pub trait Storage: Any + Send + Sync {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
@@ -141,12 +170,17 @@ pub trait Storage: Any + Send + Sync {
     fn contains(&self, entity_id: u32) -> bool;
     fn entity_ids(&self) -> &[u32];
 
+    /// Returns type name (debug builds only)
     #[cfg(debug_assertions)]
     fn type_name(&self) -> &'static str;
 
+    /// Returns formatted debug string for a component (debug builds only)
     #[cfg(debug_assertions)]
     fn debug_entry(&self, entity_id: u32) -> Option<String>;
 
+    /// Prints memory layout of stored components (debug builds only)
+    ///
+    /// Shows physical memory addresses and offsets to verify contiguity.
     #[cfg(debug_assertions)]
     fn dump_memory_layout(&self);
 }
@@ -182,6 +216,10 @@ impl<T: Component> Storage for SparseSet<T> {
         self.get(entity_id).map(|v| format!("{:?}", v))
     }
 
+    /// Prints a formatted table of memory addresses for stored components
+    ///
+    /// Used for verifying cache-friendly memory layout and debugging
+    /// performance issues. Only available in debug builds.
     #[cfg(debug_assertions)]
     fn dump_memory_layout(&self) {
         let type_name = std::any::type_name::<T>()

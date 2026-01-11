@@ -24,15 +24,20 @@
 //!
 //! #[system]
 //! fn movement(ctx: &mut Context) {
-//!     // Multiple components query with fluent API
 //!     ctx.world_mut()
-//!         .select_mut::<Position>()
-//!         .with::<Velocity>()
-//!         .tagged("player")
+//!         .select_mut::<(Position, Velocity)>()
 //!         .each(|entity, (pos, vel)| {
 //!             pos.x += vel.x;
 //!             pos.y += vel.y;
 //!         });
+//! }
+//!
+//! fn main() {
+//!     Kon::new()
+//!         .add_plugin(DefaultPlugins)
+//!         .add_startup_system(setup)
+//!         .add_system(movement)
+//!         .run();
 //! }
 //! ```
 
@@ -45,8 +50,22 @@ mod world;
 
 use std::{any::Any, fmt::Debug};
 
-/// Base trait for all components.
-/// Automatically implemented for types that are Any + Send + Sync + Debug + 'static.
+/// Base trait for all components
+///
+/// Automatically implemented for types that are:
+/// - `Any + Send + Sync + Debug + 'static`
+///
+/// You don't need to implement this manually. Just use `#[component]` macro
+/// or derive the required traits:
+///
+/// ```ignore
+/// #[component]
+/// struct Position { x: f32, y: f32 }
+///
+/// // Or manually:
+/// #[derive(Debug, Clone, PartialEq)]
+/// struct Velocity { x: f32, y: f32 }
+/// ```
 pub trait Component: Any + Send + Sync + Debug + 'static {}
 impl<T: Any + Send + Sync + Debug + 'static> Component for T {}
 
