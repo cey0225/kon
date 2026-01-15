@@ -1,4 +1,4 @@
-use crate::{Context, Plugin};
+use crate::{Context, DefaultDriver, Driver, Plugin};
 
 /// Function signature for system callbacks
 ///
@@ -34,6 +34,8 @@ pub struct App {
     systems: Vec<SystemFn>,
     /// Registered plugins
     plugins: Vec<Box<dyn Plugin>>,
+    /// Custom game loop driver (defaults to DefaultDriver)
+    driver: Option<Box<dyn Driver>>,
 }
 
 impl Default for App {
@@ -58,7 +60,30 @@ impl App {
             startup_systems: Vec::new(),
             systems: Vec::new(),
             plugins: Vec::new(),
+            driver: Some(Box::new(DefaultDriver)),
         }
+    }
+
+    /// Sets a custom driver for the game loop
+    ///
+    /// Replaces the default driver with a custom implementation. This allows
+    /// control over how the application lifecycle executes (e.g., fixed timestep,
+    /// event-driven loops, or headless simulation).
+    ///
+    /// Must be called before `run()`. If not set, `DefaultDriver` is used.
+    ///
+    /// # Returns
+    /// Self reference for method chaining
+    ///
+    /// # Example
+    /// ```ignore
+    /// Kon::new()
+    ///     .set_driver(CustomDriver)
+    ///     .run();
+    /// ```
+    pub fn set_driver<D: Driver + 'static>(&mut self, driver: D) -> &mut Self {
+        self.driver = Some(Box::new(driver));
+        self
     }
 
     /// Adds a plugin to the application
@@ -122,51 +147,85 @@ impl App {
         &mut self.context
     }
 
-    /// Runs the application main loop
+    /// Initializes the application
     ///
-    /// # Lifecycle
-    /// 1. Initialize all plugins (call `ready()`)
-    /// 2. Execute startup systems once
-    /// 3. Run main loop until `ctx.quit()` is called:
-    ///     - Update frame timing
-    ///     - Execute all systems in order
-    ///     - Clear events (prevents stale data next frame)
-    /// 4. Cleanup plugins on exit
-    pub fn run(&mut self) {
-        log::info!("Kon Engine initialized");
-
+    /// Called automatically by the driver. This method:
+    /// 1. Calls `ready()` on all registered plugins
+    /// 2. Executes all startup systems once
+    ///
+    /// Should not be called manually unless implementing a custom driver.
+    pub fn initialize(&mut self) {
         let plugin_count = self.plugins.iter().filter(|p| !p.is_plugin_group()).count();
-
-        // Initialize plugins
         log::debug!("Calling ready() on {} plugin(s)", plugin_count);
+
         for plugin in &self.plugins {
             plugin.ready(&mut self.context);
         }
 
-        // Run startup systems once
+        log::debug!("Registered {} active system(s)", self.systems.len());
+
         log::debug!("Executed {} startup system(s)", self.startup_systems.len());
         for system in &mut self.startup_systems {
             system(&mut self.context);
         }
+    }
 
-        log::debug!("Registered {} active system(s)", self.systems.len());
+    /// Executes a single frame update
+    ///
+    /// Called automatically by the driver each frame. This method:
+    /// 1. Updates time tracking
+    /// 2. Runs all registered systems
+    /// 3. Clears frame events
+    ///
+    /// Should not be called manually unless implementing a custom driver.
+    pub fn tick(&mut self) {
+        self.context.time.update();
 
-        // Main loop - runs until context.quit() is called
-        while self.context.is_running() {
-            self.context.time.update();
-
-            for system in &mut self.systems {
-                system(&mut self.context);
-            }
-
-            // Clear events at end of frame
-            self.context.events.clear_all();
+        for system in &mut self.systems {
+            system(&mut self.context);
         }
 
-        // Cleanup phase
+        self.context.events.clear_all();
+    }
+
+    /// Cleans up the application
+    ///
+    /// Called automatically by the driver on exit. This method calls `cleanup()`
+    /// on all registered plugins, allowing them to release resources.
+    ///
+    /// Should not be called manually unless implementing a custom driver.
+    pub fn cleanup(&mut self) {
+        let plugin_count = self.plugins.iter().filter(|p| !p.is_plugin_group()).count();
         log::debug!("Cleaning up {} plugin(s)", plugin_count);
+
         for plugin in &self.plugins {
             plugin.cleanup(&mut self.context);
+        }
+    }
+
+    /// Starts the application and runs the game loop
+    ///
+    /// This is the entry point for executing the engine. It:
+    /// 1. Transfers ownership of the app to the configured driver
+    /// 2. The driver handles initialization, update loop, and cleanup
+    /// 3. Blocks until the application exits
+    ///
+    /// The driver is consumed during execution. If no custom driver was set
+    /// via `set_driver()`, the `DefaultDriver` is used.
+    ///
+    /// # Example
+    /// ```ignore
+    /// Kon::new()
+    ///     .add_plugin(DefaultPlugins)
+    ///     .add_system(update_system)
+    ///     .run();  // Blocks here until exit
+    /// ```
+    #[track_caller]
+    pub fn run(&mut self) {
+        log::info!("Kon Engine initialized");
+
+        if let Some(driver) = self.driver.take() {
+            driver.drive(std::mem::take(self));
         }
 
         log::info!("Kon Engine stopped");
