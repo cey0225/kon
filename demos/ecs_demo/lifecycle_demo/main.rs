@@ -101,7 +101,7 @@ fn done(ctx: &mut Context) {
 
 fn main() {
     Kon::new()
-        .add_plugin(DefaultPlugins)
+        .add_plugin(EcsPlugin)
         .add_startup_system(setup)
         .add_system(tick_lifetime)
         .add_system(spawn_on_frame_2)

@@ -80,7 +80,7 @@ fn final_check(ctx: &mut Context) {
 
 fn main() {
     Kon::new()
-        .add_plugin(DefaultPlugins)
+        .add_plugin(EcsPlugin)
         .add_startup_system(setup)
         .add_system(fragmentation_test)
         .add_system(final_check)

@@ -115,7 +115,7 @@ fn done(ctx: &mut Context) {
 
 fn main() {
     Kon::new()
-        .add_plugin(DefaultPlugins)
+        .add_plugin(EcsPlugin)
         .add_startup_system(setup)
         .add_system(movement_system)
         .add_system(combat_system)

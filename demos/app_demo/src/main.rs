@@ -1,15 +1,20 @@
+use std::{path::PathBuf, str::FromStr};
 use kon::prelude::*;
 
 #[system]
-fn setup(_ctx: &mut Context) {
+fn setup(ctx: &mut Context) {
+    ctx.window().set_config(
+        WindowConfig::default().with_icon(PathBuf::from_str("assets/kon_app.png").ok()),
+    );
+
     println!("Hello");
 }
 
 #[system]
 fn update(ctx: &mut Context) {
-    if ctx.time.frame_count() == 100 {
-        ctx.quit();
-    }
+    ctx.on::<WindowCloseRequested>(|_, context| {
+        context.quit();
+    });
 }
 
 fn main() {

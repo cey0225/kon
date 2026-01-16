@@ -2,7 +2,7 @@
 
 **kon_macros** contains the procedural macros for the Kon Engine ecosystem.
 
-## Features
+## Scope
 
 - **#[component]**: Auto-derives Debug, Clone, PartialEq for component structs.
 - **#[system]**: Validates system function signatures at compile time.

@@ -2,7 +2,7 @@
 
 **kon_ecs** is the ECS implementation for Kon Engine, built around SparseSet storage for fast iteration.
 
-## Technical Highlights
+## Scope
 
 - **Bitmask Tagging:** O(1) entity filtering with bit operations.
 - **Zero-Allocation Iteration:** Queries don't allocate - they iterate directly over contiguous memory.
