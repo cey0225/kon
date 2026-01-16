@@ -37,6 +37,7 @@
 pub use kon_core;
 pub use kon_ecs;
 pub use kon_macros::{component, system};
+pub use kon_window;
 pub use log;
 
 use kon_core::Plugin;
@@ -47,6 +48,7 @@ pub mod prelude {
     pub use crate::{component, system};
     pub use kon_core::{App, Context, Event, Events, Globals, Kon, Plugin, Time, Driver, events::*};
     pub use kon_ecs::{ContextEcsExt, EcsPlugin, Entity, EntityBuilder, Query, World};
+    pub use kon_window::{KonWindow, WindowConfig, WindowPlugin, ContextWindowExt, types::*};
 }
 
 /// Engine version
@@ -56,11 +58,13 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 ///
 /// Includes:
 /// - `EcsPlugin` - Entity Component System
+/// - `WindowPlugin` - Window management
 pub struct DefaultPlugins;
 
 impl Plugin for DefaultPlugins {
     fn build(&self, app: &mut kon_core::App) {
         app.add_plugin(kon_ecs::EcsPlugin);
+        app.add_plugin(kon_window::WindowPlugin);
     }
 
     fn is_plugin_group(&self) -> bool {

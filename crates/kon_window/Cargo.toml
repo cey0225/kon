@@ -2,6 +2,14 @@
 name = "kon_window"
 version.workspace = true
 edition.workspace = true
-publish = false
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Winit-based window management for the Kon Engine."
 
 [dependencies]
+log.workspace = true
+kon_core.workspace = true
+winit.workspace = true
+image.workspace = true
