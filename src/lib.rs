@@ -20,9 +20,9 @@
 //!
 //! #[system]
 //! fn update(ctx: &mut Context) {
-//!     if ctx.time.frame_count() == 60 {
-//!         ctx.quit();
-//!     }
+//!     ctx.on::<WindowCloseRequested>(|_, context| {
+//!         context.quit();
+//!     });
 //! }
 //!
 //! fn main() {
@@ -45,7 +45,7 @@ pub mod prelude {
     //! Common imports for Kon Engine
     pub use crate::DefaultPlugins;
     pub use crate::{component, system};
-    pub use kon_core::{App, Context, Event, Events, Globals, Kon, Plugin, Time, Driver};
+    pub use kon_core::{App, Context, Event, Events, Globals, Kon, Plugin, Time, Driver, events::*};
     pub use kon_ecs::{ContextEcsExt, EcsPlugin, Entity, EntityBuilder, Query, World};
 }
 

@@ -83,10 +83,6 @@ impl Events {
     }
 }
 
-/// Application exit event
-#[derive(Debug, Clone)]
-pub struct AppExit;
-
 #[cfg(test)]
 mod tests {
     use super::*;

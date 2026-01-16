@@ -1,4 +1,5 @@
-use crate::{Events, Time};
+use crate::events::AppQuit;
+use crate::{Event, Events, Time};
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 
@@ -134,6 +135,7 @@ impl Context {
     /// The main loop will exit gracefully after all systems finish execution.
     pub fn quit(&mut self) {
         self.running = false;
+        self.events.send(AppQuit);
         log::info!("Quit requested");
     }
 
@@ -157,5 +159,35 @@ impl Context {
     /// Gets a mutable reference to a global resource
     pub fn global_mut<G: Any + Send + Sync + 'static>(&mut self) -> Option<&mut G> {
         self.globals.get_mut()
+    }
+
+    /// Convenience method for reading events
+    ///
+    /// # Example
+    /// ```ignore
+    /// ctx.on::<KeyboardInput>(|event, _context| {
+    ///     println!("Key: {:?}", event.key);
+    /// });
+    /// ```
+    pub fn on<E: Event + Clone>(&mut self, mut f: impl FnMut(&E, &mut Self)) {
+        let events: Vec<E> = self.events.read::<E>().cloned().collect();
+        for event in events {
+            f(&event, self);
+        }
+    }
+
+    /// Convenience method for consuming events
+    ///
+    /// # Example
+    /// ```ignore
+    /// ctx.take::<MouseButtonInput>(|event, _context| {
+    ///     handle_click(event.button);
+    /// });
+    /// ```
+    pub fn take<E: Event>(&mut self, mut f: impl FnMut(E, &mut Self)) {
+        let events: Vec<E> = self.events.consume::<E>().collect();
+        for event in events {
+            f(event, self);
+        }
     }
 }
