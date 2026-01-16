@@ -1,3 +1,4 @@
+use log::LevelFilter;
 use crate::{Context, DefaultDriver, Driver, Plugin};
 
 /// Function signature for system callbacks
@@ -49,9 +50,10 @@ impl App {
     ///
     /// Initializes logging and installs custom panic handler
     pub fn new() -> Self {
-        let _ =
-            env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug"))
-                .try_init();
+        let _ = env_logger::Builder::new()
+            .filter_level(LevelFilter::Error)
+            .filter_module("kon", LevelFilter::Debug)
+            .try_init();
 
         install_panic_hook();
 
