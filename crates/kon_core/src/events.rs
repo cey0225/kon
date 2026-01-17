@@ -304,15 +304,31 @@ pub enum MouseButton {
 }
 
 /// Mouse cursor moved event
+///
+/// Contains the absolute pixel coordinates of the mouse
+/// relative to the window.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct MouseMotion {
+pub struct MousePosition {
     pub x: f32,
     pub y: f32,
 }
 
 /// Mouse wheel scrolled event
+///
+/// Contains the scroll delta for both horizontal
+/// and vertical axes.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MouseWheel {
+    pub delta_x: f32,
+    pub delta_y: f32,
+}
+
+/// Raw mouse motion event
+///
+/// Contains the relative hardware movement delta,
+/// independent of the cursor position.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MouseMotion {
     pub delta_x: f32,
     pub delta_y: f32,
 }
