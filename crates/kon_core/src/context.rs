@@ -1,6 +1,7 @@
 use crate::events::AppQuit;
 use crate::{Event, Events, Time};
 use std::any::{Any, TypeId};
+use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 
 /// Type-erased storage for engine-wide resources
@@ -22,17 +23,14 @@ use std::collections::HashMap;
 /// // Register
 /// ctx.register(GameConfig { difficulty: 2 });
 ///
-/// // Read
-/// let config = ctx.global::<GameConfig>().unwrap();
-/// println!("Difficulty: {}", config.difficulty);
-///
-/// // Write
-/// ctx.global_mut::<GameConfig>().unwrap().difficulty = 3;
-/// ```
+/// // Read / Write
+/// let mut config = ctx.global::<GameConfig>().unwrap();
+/// config.difficulty = 3;
+/// println!("Difficulty: {}", config.difficulty); // 3
 #[derive(Default)]
 pub struct Globals {
     /// TypeId -> boxed resource mapping
-    data: HashMap<TypeId, Box<dyn Any + Send + Sync>>,
+    data: HashMap<TypeId, RefCell<Box<dyn Any + Send + Sync>>>,
 }
 
 impl Globals {
@@ -44,25 +42,19 @@ impl Globals {
     ///
     /// If a resource of this type already exists, it will be replaced.
     pub fn register<G: Any + Send + Sync + 'static>(&mut self, global: G) {
-        self.data.insert(TypeId::of::<G>(), Box::new(global));
+        self.data
+            .insert(TypeId::of::<G>(), RefCell::new(Box::new(global)));
     }
 
-    /// Gets an immutable reference to a global resource
+    /// Gets a reference to a global resource
     ///
     /// Returns `None` if type not registered
-    pub fn get<G: Any + Send + Sync + 'static>(&self) -> Option<&G> {
-        self.data
-            .get(&TypeId::of::<G>())
-            .and_then(|g| g.downcast_ref())
-    }
-
-    /// Gets a mutable reference to a global resource
-    ///
-    /// Returns `None` if type not registered
-    pub fn get_mut<G: Any + Send + Sync + 'static>(&mut self) -> Option<&mut G> {
-        self.data
-            .get_mut(&TypeId::of::<G>())
-            .and_then(|g| g.downcast_mut())
+    pub fn get<G: Any + Send + Sync + 'static>(&self) -> Option<RefMut<'_, G>> {
+        self.data.get(&TypeId::of::<G>()).map(|cell| {
+            RefMut::map(cell.borrow_mut(), |boxed| {
+                boxed.downcast_mut::<G>().expect("Resource type mismatch")
+            })
+        })
     }
 
     /// Checks if a global resource type is registered
@@ -76,8 +68,11 @@ impl Globals {
     pub fn remove<G: Any + Send + Sync + 'static>(&mut self) -> Option<G> {
         self.data
             .remove(&TypeId::of::<G>())
-            .and_then(|g| g.downcast().ok())
-            .map(|g| *g)
+            .and_then(|cell| {
+                let boxed = cell.into_inner();
+                boxed.downcast::<G>().ok()
+            })
+            .map(|boxed| *boxed)
     }
 }
 
@@ -98,7 +93,7 @@ impl Globals {
 ///         // handle collision
 ///     }
 ///
-///     let world = ctx.world_mut();
+///     let mut world = ctx.world();
 ///     world.spawn().insert(Health(100));
 /// }
 /// ```
@@ -151,14 +146,9 @@ impl Context {
         self.globals.register(global);
     }
 
-    /// Gets an immutable reference to a global resource
-    pub fn global<G: Any + Send + Sync + 'static>(&self) -> Option<&G> {
+    /// Gets a reference to a global resource
+    pub fn global<G: Any + Send + Sync + 'static>(&self) -> Option<RefMut<'_, G>> {
         self.globals.get()
-    }
-
-    /// Gets a mutable reference to a global resource
-    pub fn global_mut<G: Any + Send + Sync + 'static>(&mut self) -> Option<&mut G> {
-        self.globals.get_mut()
     }
 
     /// Convenience method for reading events
