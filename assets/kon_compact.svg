@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 60">
+        <g transform="translate(5,5) scale(0.5)">
+      <defs>
+        <radialGradient id="gChibi" cx="30%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#00d4d4"/>
+          <stop offset="100%" stop-color="#14b8a6"/>
+        </radialGradient>
+      </defs>
+      <ellipse cx="50" cy="55" rx="32" ry="28" fill="url(#gChibi)"/>
+      <ellipse cx="18" cy="38" rx="6" ry="16" fill="#2dd4bf" transform="rotate(-25 18 38)"/>
+      <ellipse cx="26" cy="32" rx="5" ry="18" fill="#14b8a6" transform="rotate(-10 26 32)"/>
+      <ellipse cx="35" cy="30" rx="5" ry="16" fill="#00d4d4" transform="rotate(5 35 30)"/>
+      <ellipse cx="82" cy="38" rx="6" ry="16" fill="#2dd4bf" transform="rotate(25 82 38)"/>
+      <ellipse cx="74" cy="32" rx="5" ry="18" fill="#14b8a6" transform="rotate(10 74 32)"/>
+      <ellipse cx="65" cy="30" rx="5" ry="16" fill="#00d4d4" transform="rotate(-5 65 30)"/>
+      <ellipse cx="38" cy="52" rx="9" ry="10" fill="#0f172a"/>
+      <ellipse cx="62" cy="52" rx="9" ry="10" fill="#0f172a"/>
+      <circle cx="41" cy="49" r="4" fill="#ffffff"/>
+      <circle cx="65" cy="49" r="4" fill="#ffffff"/>
+      <circle cx="36" cy="54" r="2" fill="#ffffff" opacity="0.5"/>
+      <circle cx="60" cy="54" r="2" fill="#ffffff" opacity="0.5"/>
+      <ellipse cx="28" cy="62" rx="5" ry="3" fill="#fda4af" opacity="0.5"/>
+      <ellipse cx="72" cy="62" rx="5" ry="3" fill="#fda4af" opacity="0.5"/>
+      <path d="M43,67 Q50,74 57,67" stroke="#0f172a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    </g>
+        <text x="65" y="42" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="700" letter-spacing="3" fill="#cbd5e1">KON</text>
+      </svg>
