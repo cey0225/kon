@@ -2,6 +2,12 @@
 name = "kon_input"
 version.workspace = true
 edition.workspace = true
-publish = false
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Input handling for the Kon Engine."
 
 [dependencies]
+log.workspace = true
+kon_core.workspace = true
