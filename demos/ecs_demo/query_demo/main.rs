@@ -30,7 +30,7 @@ struct Armor;
 fn setup(ctx: &mut Context) {
     println!("=== Query Demo: Advanced Filtering ===\n");
 
-    ctx.world_mut()
+    ctx.world()
         .spawn()
         .insert(Name("Player".into()))
         .insert(Position { x: 0.0, y: 0.0 })
@@ -39,7 +39,7 @@ fn setup(ctx: &mut Context) {
         .insert(Armor)
         .id();
 
-    ctx.world_mut()
+    ctx.world()
         .spawn()
         .insert(Name("Enemy".into()))
         .insert(Position { x: 5.0, y: 5.0 })
@@ -47,7 +47,7 @@ fn setup(ctx: &mut Context) {
         .insert(Health(100.0))
         .id();
 
-    ctx.world_mut()
+    ctx.world()
         .spawn()
         .insert(Name("Rock".into()))
         .insert(Position { x: 10.0, y: 10.0 })
@@ -61,7 +61,7 @@ fn setup(ctx: &mut Context) {
 fn movement_system(ctx: &mut Context) {
     println!("[Movement] Updating moving entities:");
 
-    ctx.world_mut()
+    ctx.world()
         .select_mut::<(Position, Velocity)>()
         .each(|entity, (pos, vel)| {
             pos.x += vel.x;
@@ -75,7 +75,7 @@ fn movement_system(ctx: &mut Context) {
 fn combat_system(ctx: &mut Context) {
     println!("[Combat] Applying environmental damage:");
 
-    ctx.world_mut()
+    ctx.world()
         .select_mut::<(Health,)>()
         .without::<Armor>()
         .each(|entity, (hp,)| {
@@ -83,7 +83,7 @@ fn combat_system(ctx: &mut Context) {
             println!("  {:?} (No Armor) took 20 damage. HP: {:.1}", entity, hp.0);
         });
 
-    ctx.world_mut()
+    ctx.world()
         .select_mut::<(Health,)>()
         .with::<Armor>()
         .each(|entity, (hp,)| {

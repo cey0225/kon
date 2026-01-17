@@ -26,7 +26,7 @@ fn setup(ctx: &mut Context) {
 
     for i in 0..3 {
         let id = ctx
-            .world_mut()
+            .world()
             .spawn()
             .insert(Name(format!("Entity_{}", i)))
             .insert(Position {
@@ -58,7 +58,7 @@ fn fragmentation_test(ctx: &mut Context) {
             "\n[PHASE 2] Deleting {:?} ({}) to test packing...",
             entity_to_remove, "Entity_1"
         );
-        ctx.world_mut().destroy(entity_to_remove);
+        ctx.world().destroy(entity_to_remove);
 
         println!("(Notice how the last entity's data moves to fill the gap internally)\n");
     }

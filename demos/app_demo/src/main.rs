@@ -12,6 +12,10 @@ fn setup(ctx: &mut Context) {
 
 #[system]
 fn update(ctx: &mut Context) {
+    if ctx.input().just_key_pressed(KeyCode::Escape) {
+        ctx.quit();
+    }
+
     ctx.on::<WindowCloseRequested>(|_, context| {
         context.quit();
     });

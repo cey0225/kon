@@ -15,7 +15,7 @@ struct Damage(i32);
 fn setup(ctx: &mut Context) {
     println!("=== Tag Demo ===\n");
 
-    ctx.world_mut()
+    ctx.world()
         .spawn()
         .insert(Health(100))
         .insert(Damage(10))
@@ -23,21 +23,21 @@ fn setup(ctx: &mut Context) {
         .tag("friendly")
         .id();
 
-    ctx.world_mut()
+    ctx.world()
         .spawn()
         .insert(Health(50))
         .tag("npc")
         .tag("friendly")
         .id();
 
-    ctx.world_mut()
+    ctx.world()
         .spawn()
         .insert(Health(30))
         .insert(Damage(5))
         .tag("enemy")
         .id();
 
-    ctx.world_mut()
+    ctx.world()
         .spawn()
         .insert(Health(80))
         .insert(Damage(15))
@@ -99,7 +99,7 @@ fn show_active_enemies(ctx: &mut Context) {
 fn damage_non_friendly(ctx: &mut Context) {
     println!("[not_tagged(\"friendly\")] - Damaging non-friendly entities:");
 
-    ctx.world_mut()
+    ctx.world()
         .select_mut::<(Health,)>()
         .not_tagged("friendly")
         .each(|entity, (hp,)| {

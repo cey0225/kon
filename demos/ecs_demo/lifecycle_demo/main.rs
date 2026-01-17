@@ -15,14 +15,14 @@ struct Lifetime(u32);
 fn setup(ctx: &mut Context) {
     println!("=== Lifecycle Demo ===\n");
 
-    ctx.world_mut()
+    ctx.world()
         .spawn()
         .insert(Health(100))
         .tag("permanent")
         .id();
 
     for i in 1..=3 {
-        ctx.world_mut()
+        ctx.world()
             .spawn()
             .insert(Health(10 * i))
             .insert(Lifetime(i as u32))
@@ -54,7 +54,7 @@ fn tick_lifetime(ctx: &mut Context) {
         });
 
     for entity in to_destroy {
-        ctx.world_mut().destroy(entity);
+        ctx.world().destroy(entity);
         println!("  {:?} destroyed!", entity);
     }
 
@@ -67,7 +67,7 @@ fn spawn_on_frame_2(ctx: &mut Context) {
         println!("[SPAWN] Creating new entity on frame 2");
 
         let entity = ctx
-            .world_mut()
+            .world()
             .spawn()
             .insert(Health(999))
             .insert(Lifetime(4))
