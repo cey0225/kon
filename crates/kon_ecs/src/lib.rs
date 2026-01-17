@@ -14,7 +14,7 @@
 //!
 //! #[system]
 //! fn setup(ctx: &mut Context) {
-//!     ctx.world_mut()
+//!     ctx.world()
 //!         .spawn()
 //!         .insert(Position { x: 0.0, y: 0.0 })
 //!         .insert(Velocity { x: 1.0, y: 0.0 })
@@ -24,7 +24,7 @@
 //!
 //! #[system]
 //! fn movement(ctx: &mut Context) {
-//!     ctx.world_mut()
+//!     ctx.world()
 //!         .select_mut::<(Position, Velocity)>()
 //!         .each(|entity, (pos, vel)| {
 //!             pos.x += vel.x;

@@ -27,7 +27,7 @@ use syn::{FnArg, ItemFn, PatType, Type, parse_macro_input};
 /// ```ignore
 /// #[system]
 /// fn movement(ctx: &mut Context) {
-///     ctx.world_mut()
+///     ctx.world()
 ///         .select_mut::<(Position, Velocity)>()
 ///         .each(|_, (pos, vel)| {
 ///             pos.x += vel.x;
