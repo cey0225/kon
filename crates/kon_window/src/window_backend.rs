@@ -2,14 +2,14 @@ use kon_core::{
     App,
     events::{
         CursorEntered, CursorLeft, InputState, KeyboardInput, MouseButtonInput, MouseMotion,
-        MouseWheel, TextInput, WindowCloseRequested, WindowFocused, WindowMoved, WindowResized,
-        WindowScaleFactorChanged,
+        MousePosition, MouseWheel, TextInput, WindowCloseRequested, WindowFocused, WindowMoved,
+        WindowResized, WindowScaleFactorChanged,
     },
 };
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
-    event::{ElementState, Ime, MouseScrollDelta, WindowEvent},
+    event::{DeviceEvent, ElementState, Ime, MouseScrollDelta, WindowEvent},
     event_loop::ActiveEventLoop,
     keyboard::PhysicalKey,
     window::{WindowAttributes, WindowId},
@@ -122,7 +122,7 @@ impl ApplicationHandler for WindowBackend {
                     .send(MouseButtonInput { button, state });
             }
             WindowEvent::CursorMoved { position, .. } => {
-                self.app.context_mut().events.send(MouseMotion {
+                self.app.context_mut().events.send(MousePosition {
                     x: position.x as f32,
                     y: position.y as f32,
                 })
@@ -145,6 +145,20 @@ impl ApplicationHandler for WindowBackend {
                 self.app.context_mut().events.send(CursorLeft);
             }
             _ => (),
+        }
+    }
+
+    fn device_event(
+        &mut self,
+        _event_loop: &ActiveEventLoop,
+        _device_id: winit::event::DeviceId,
+        event: winit::event::DeviceEvent,
+    ) {
+        if let DeviceEvent::MouseMotion { delta } = event {
+            self.app.context_mut().events.send(MouseMotion {
+                delta_x: delta.0 as f32,
+                delta_y: delta.1 as f32,
+            });
         }
     }
 }
