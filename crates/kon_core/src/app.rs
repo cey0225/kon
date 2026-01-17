@@ -33,6 +33,8 @@ pub struct App {
     startup_systems: Vec<SystemFn>,
     /// Systems that run every frame
     systems: Vec<SystemFn>,
+    /// System that run at the end of every frame
+    sync_systems: Vec<SystemFn>,
     /// Registered plugins
     plugins: Vec<Box<dyn Plugin>>,
     /// Custom game loop driver (defaults to DefaultDriver)
@@ -61,6 +63,7 @@ impl App {
             context: Context::new(),
             startup_systems: Vec::new(),
             systems: Vec::new(),
+            sync_systems: Vec::new(),
             plugins: Vec::new(),
             driver: Some(Box::new(DefaultDriver)),
         }
@@ -128,6 +131,18 @@ impl App {
         self
     }
 
+    /// Adds a system that runs at the end of every frame
+    ///
+    /// # Returns
+    /// Self reference for method chaining
+    pub fn add_sync_system<F>(&mut self, system: F) -> &mut Self
+    where
+        F: FnMut(&mut Context) + 'static,
+    {
+        self.sync_systems.push(Box::new(system));
+        self
+    }
+
     /// Registers a global resource accessible from all systems
     ///
     /// Resources are stored in Context and accessible via `ctx.global::<T>()`.
@@ -185,6 +200,10 @@ impl App {
 
         for system in &mut self.systems {
             system(&mut self.context);
+        }
+
+        for sync_system in &mut self.sync_systems {
+            sync_system(&mut self.context);
         }
 
         self.context.events.clear_all();
